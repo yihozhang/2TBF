@@ -11,7 +11,6 @@ object TTBF extends RegexParsers {
     private class CaseinsensitiveLifter(str: String) {
         def ic: Parser[String] = ("""(?i)\Q""" + str + """\E""").r
     }
-    
     private implicit def liftString(str: String): CaseinsensitiveLifter = new CaseinsensitiveLifter(str)
 
     def astId: Parser[ASTId] = {
@@ -20,19 +19,21 @@ object TTBF extends RegexParsers {
     def astProg: Parser[ASTProg] = {
         "program".ic ~ astId ~>
         astVarDecls ~
-        rep(astSubrt) ~
-        astStmts(".") ^^ {
+        astSubrt.* ~
+        astBlockDot ^^ {
             case globalVars ~ subrts ~ mainBody =>
                 ASTProg(globalVars, subrts, mainBody)
         }
     }
 
     def astVarDecls: Parser[ASTVarDecls] = {
-        "var".ic ~> rep(astVarDeclClause) ^^
-            { cls => ASTVarDecls(cls.flatten) }
+        ("var".ic ~> astVarDeclClause.+).? ^^ {
+            case Some(cls) => ASTVarDecls(cls.flatten)
+            case None => ASTVarDecls(Nil)
+        }
     }
     def astVarDeclClause: Parser[List[ASTVarDecl]] = {
-        rep(astId) ~ ":" ~ astVarType <~ ";" ^^ {
+        astId.+ ~ ":" ~ astVarType <~ ";" ^^ {
             case ids ~ _ ~ valType =>
                 ids.map(id => ASTVarDecl(id, valType))
         }
@@ -54,21 +55,39 @@ object TTBF extends RegexParsers {
     def astProc: Parser[ASTProc] = {
         "procedure".ic ~ astId ~ "(" ~ repsep(astParam, ",") ~ ")" ~ ";" ~ astSubrtBody ^^ {
             case _ ~ procName ~ _ ~ params ~ _ ~ _ ~ subrt => {
-                val actualParams = ASTVarDecls(params.map(param => ASTVarDecl(param._1, param._2)))
+                val actualParams = ASTParamDecls(params.flatten)
                 ASTProc(procName, actualParams, subrt._1, subrt._2)
             }
         }
     }
     def astFun: Parser[ASTFun] = {
-        "function".ic ~ astId ~ "(" ~ repsep(astParam, ",") ~ ")" ~ ":" ~ astBaseVarType ~ ";" ~ astSubrtBody ^^ {
+        "function".ic ~ astId ~
+            "(" ~ repsep(astParam, ",") ~ ")" ~ ":" ~ astBaseVarType ~ ";" ~ astSubrtBody ^^ {
             case _ ~ procName ~ _ ~ params ~ _ ~ _ ~ retType ~ _ ~ subrt => {
-                val actualParams = ASTVarDecls(params.map(param => ASTVarDecl(param._1, param._2)))
+                val actualParams = ASTParamDecls(params.flatten)
                 ASTFun(procName, actualParams, subrt._1, subrt._2, retType)
             }
         }
     }
-    def astSubrtBody: Parser[(ASTVarDecls, ASTStmts)] = ???
-    def astParam: Parser[(ASTId, ASTVarType)] = ???
-    def astStmts(endMarker: String = ";"): Parser[ASTStmts] = ???
-
+    def astSubrtBody: Parser[(ASTVarDecls, ASTStmts)] = {
+        astVarDecls ~ astBlockSemicolon ^^ {
+            case varDecls ~ stmts => (varDecls, stmts)
+        }
+    }
+    def astParam: Parser[List[ASTParamDecl]] = {
+        "var".ic.? ~ astId.+ ~ ":" ~ astVarType ^^ {
+            case varModifier ~ varNames ~ _ ~ varType => {
+                val isRef = varModifier.isDefined
+                varNames.map(varName => ASTParamDecl(varName, varType, isRef))
+            }
+        }
+    }
+    def astBlock(endMarker: String): Parser[ASTStmts] = {
+        "begin".ic ~> astStmt.* <~ "end".ic ~ endMarker ^^ {
+            ASTStmts(_)
+        }
+    }
+    val astBlockDot = astBlock(".")
+    val astBlockSemicolon = astBlock(";")
+    val astStmt: Parser[ASTStmt] = ???
 }
