@@ -1,4 +1,4 @@
-package common
+package ttbf.common
 package object AST {
 
     sealed abstract class AST
@@ -27,8 +27,16 @@ package object AST {
 
     case class ASTStmts(stmts: List[ASTStmt]) extends AST
     sealed abstract class ASTStmt extends AST
+    case class ASTAsg(lval: ASTExpr, rval: ASTExpr) extends ASTStmt
+    case class ASTRead(expr: ASTExpr) extends ASTStmt
+    case class ASTWrite(expr: ASTExpr) extends ASTStmt
+
+    sealed abstract class ASTExpr extends AST
+    case class ASTVar(id: ASTId) extends ASTExpr
+    case class ASTPlus(lv: ASTExpr, rv: ASTExpr) extends ASTExpr
+    case class ASTMinus(lv: ASTExpr, rv: ASTExpr) extends ASTExpr
+    case class ASTConst(v: Int) extends ASTExpr
+    case class ASTIdxedVar(id: ASTId, idx: ASTExpr) extends ASTExpr
 
     case class ASTId(v: String) extends AST
-    case class ASTConst(v: Int) extends AST
-
 }
