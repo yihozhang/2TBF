@@ -42,7 +42,8 @@ void build_jump_table() {
         if (instr[i] == '(') {
             stack[p++] = i;
         } else if (instr[i] == '(') {
-            jump_table[stack[--p]] = i;
+            jump_table[jump_table[i] = stack[--p]] = i;
+            
         }
     }
     free(stack);
@@ -60,13 +61,14 @@ int next_int() {
     return x;
 }
 
-#define NEXT_INT_OR(x) (has_next_int() ? next_int() : (x))
-#define POP() stk[--stk_p]
-#define PUSH(x) (stk[stk_p++] = (x))
-#define SET_VAL(x) (arr[arr_p].val = (x))
-#define GET_VAL() (arr[arr_p].val)
+#define next_int_or(x) (has_next_int() ? next_int() : (x))
+#define pop() stk[--stk_p]
+#define top() stk[stk_p - 1]
+#define push(x) (stk[stk_p++] = (x))
+#define set_val(x) (arr[arr_p].val = (x))
+#define get_val() (arr[arr_p].val)
 char buffered_input;
-char GET_CHAR() {
+char get_char() {
     if (buffered_input) {
         char c = buffered_input;
         buffered_input = 0;
@@ -75,16 +77,16 @@ char GET_CHAR() {
         return getchar();
     }
 }
-#define PUT_CHAR(x) putchar(x)
+#define put_char(x) putchar(x)
 
-int GET_INT() {
+int get_int() {
     int x = 0;
     while (isdigit(buffered_input=getchar())) {
         x = x * 10 + buffered_input - '0';
     }
     return x;
 }
-#define PUT_INT(x) printf("%d", (x))
+#define put_int(x) printf("%d", (x))
 
 void print_config() {
     printf("instr: %c, instr_p: %d\n", instr[instr_p], instr_p);
@@ -117,33 +119,45 @@ int main(int argc, char* argv[]) {
             if (instr_p == instr_len) break;
         }
         if (op == '+') {
-            v1 = POP();
-            v2 = NEXT_INT_OR(POP());
-            PUSH(v1 + v2);
+            v1 = pop();
+            v2 = next_int_or(pop());
+            push(v1 + v2);
         } else if (op == '-') {
-            v1 = NEXT_INT_OR(POP());
-            v2 = POP();
-            PUSH(v2 - v1);
+            v1 = next_int_or(pop());
+            v2 = pop();
+            push(v2 - v1);
         } else if (op == 'u') {
-            v1 = NEXT_INT_OR(GET_VAL());
-            PUSH(v1);
+            v1 = next_int_or(get_val());
+            push(v1);
         } else if (op == 'o') {
-            v1 = NEXT_INT_OR(0);
-            if (v1) POP(); else SET_VAL(POP());
+            v1 = next_int_or(0);
+            if (v1) pop(); else set_val(pop());
         } else if (op == '>') {
-            v1 = NEXT_INT_OR(GET_VAL());
+            v1 = next_int_or(get_val());
             arr_p += v1;
         } else if (op == '<') {
-            v1 = NEXT_INT_OR(GET_VAL());
+            v1 = next_int_or(get_val());
             arr_p -= v1;
         } else if (op == 'r') {
-            SET_VAL(GET_CHAR());
+            set_val(get_char());
         } else if (op == 'w') {
-            PUT_CHAR(GET_VAL());
+            put_char(get_val());
         } else if (op == 'R') {
-            SET_VAL(GET_INT());
+            set_val(get_int());
         } else if (op == 'W') {
-            PUT_INT(GET_VAL());
+            put_int(get_val());
+        } else if (op == '[') {
+            if (!top()) instr_p = jump_table[instr_p];
+        } else if (op == ']') {
+            if (top()) instr_p = jump_table[instr_p];
+        } else if (op == '?') {
+            char syb = instr[++instr_p];
+            syb = isdigit(syb) ? syb - '0' : syb - 'a' + 10;
+            push((arr[arr_p].flag & (1 << syb)) && 1)
+        } else if (op == '!') {
+            char syb = instr[++instr_p];
+            syb = isdigit(syb) ? syb - '0' : syb - 'a' + 10;
+            arr[arr_p].flag ^= 1 << syb;
         } else if (!isspace(op)) {
             printf("WARNING: unrecognized char %c", op);
         }
