@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <string.h>
 #define MAX_LENGTH 100000
 
 typedef struct {
@@ -36,12 +37,13 @@ void read_instr(char filename[]) {
 
 void build_jump_table() {
     jump_table = (int*) malloc(instr_len * sizeof(int));
+    memset(jump_table, 0, instr_len * sizeof(int));
     int *stack = (int*) malloc(instr_len * sizeof(int));
     int p = 0;
     for (int i = 0; i < instr_len; i++) {
-        if (instr[i] == '(') {
+        if (instr[i] == '[') {
             stack[p++] = i;
-        } else if (instr[i] == '(') {
+        } else if (instr[i] == ']') {
             jump_table[jump_table[i] = stack[--p]] = i;
             
         }
@@ -89,7 +91,7 @@ int get_int() {
 #define put_int(x) printf("%d", (x))
 
 void print_config() {
-    printf("instr: %c, instr_p: %d\n", instr[instr_p], instr_p);
+    printf("instr: %c, instr_p: %d\n", op, instr_p);
     printf("v1: %hd, v2: %hd\n", v1, v2);
     printf("arr_p: %d, stk_p: %d\n", arr_p, stk_p);
     printf("Arr: ");
@@ -102,7 +104,7 @@ void print_config() {
     }
     puts("\n");
 }
-// #define DEBUG
+#define DEBUG
 int main(int argc, char* argv[]) {
     if (argc == 0) {
         printf("not enough parameters!");
@@ -110,6 +112,14 @@ int main(int argc, char* argv[]) {
     }
     read_instr(argv[1]);
     build_jump_table();
+#ifdef DEBUG
+    printf("jump table\n");
+    for (int i = 0; i < instr_len; i++) {
+        if (jump_table[i]) {
+            printf("from: %d, to: %d\n", i, jump_table[i]);
+        }
+    }
+#endif
     while (instr_p < instr_len) {
         op = instr[instr_p];
         if (op == ';') {
@@ -130,8 +140,8 @@ int main(int argc, char* argv[]) {
             v1 = next_int_or(get_val());
             push(v1);
         } else if (op == 'o') {
-            v1 = next_int_or(0);
-            if (v1) pop(); else set_val(pop());
+            v1 = next_int_or(1);
+            if (v1) set_val(pop()); else pop();
         } else if (op == '>') {
             v1 = next_int_or(get_val());
             arr_p += v1;
@@ -153,7 +163,7 @@ int main(int argc, char* argv[]) {
         } else if (op == '?') {
             char syb = instr[++instr_p];
             syb = isdigit(syb) ? syb - '0' : syb - 'a' + 10;
-            push((arr[arr_p].flag & (1 << syb)) && 1)
+            push((arr[arr_p].flag & (1 << syb)) && 1);
         } else if (op == '!') {
             char syb = instr[++instr_p];
             syb = isdigit(syb) ? syb - '0' : syb - 'a' + 10;
@@ -162,7 +172,7 @@ int main(int argc, char* argv[]) {
             printf("WARNING: unrecognized char %c", op);
         }
 # ifdef DEBUG
-        print_config();
+        if (!isspace(op)) print_config();
 # endif
         ++instr_p;
     }

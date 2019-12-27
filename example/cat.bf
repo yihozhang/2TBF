@@ -1,0 +1,1 @@
+ru+1[woru+1] ; assume EOF is represented as -1

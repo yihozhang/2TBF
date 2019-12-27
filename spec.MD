@@ -8,15 +8,19 @@ Different from Brainfuck, besides the normal tape which we call `Arr`, 2TBF has 
 
 `u num?`: push `num` to the stack. If `num` is not specified, then push the value the `Arr` pointer currently points to.
 
-`o num?`: pop the number from the stack, save the value at the cell that the `Arr` pointer currently points to. If num is specified and stand for a false value (i.e., 0), then the value popped is thrown away.
+`o num?`: pop the number from the stack, save the value at the cell that the `Arr` pointer currently points to. If num is specified and stands for a false value (i.e., 0), then the value popped is thrown away.
 
 `> num?`: move the `Arr` pointer to the right for `num` cells, where `num` is the value at the top of `Stk` if not specified.
 
 `< num?`: move the `Arr` pointer to the left for `num` cells, where `num` is the value at the top of `Stk` if not specified.
 
-`r num`: read one value from the input to the current cell at `Arr`.
+`r`: read one character from the input to the current cell at `Arr`.
 
-`w num`: write one value to the output from the current cell at `Arr`.
+`w`: write one character to the output from the current cell at `Arr`.
+
+`R`: read one number from the input to the current cell at `Arr`.
+
+`W`: write one number to the output from the current cell at `Arr`.
 
 `! syb`: place a `syb` mark at the current cell at `Arr`. `syb` should be one digit in hex, i.e., from 0 to f.
 
