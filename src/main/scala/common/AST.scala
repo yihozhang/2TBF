@@ -4,12 +4,15 @@ package object AST {
     sealed abstract class AST
 
     case class ASTProg(globalVars: ASTVarDecls,
-        subrts: List[ASTSubrt], mainBody: ASTStmts) extends AST
+        subrts: List[ASTSubrt], mainBody: List[ASTStmt]) extends AST
 
-    case class ASTDecls[T<:ASTDeclAbstract](varDecl: List[T]) extends AST
-    sealed abstract class ASTDeclAbstract(varName: ASTId, varType: ASTVarType) extends AST
-    type ASTVarDecls = ASTDecls[ASTVarDecl]; val ASTVarDecls = ASTDecls[ASTVarDecl] _
-    type ASTParamDecls = ASTDecls[ASTParamDecl]; val ASTParamDecls = ASTDecls[ASTParamDecl] _
+    type ASTDecls[T<:ASTDeclAbstract] = List[T]
+    // case class ASTDecls[T<:ASTDeclAbstract](varDecl: List[T]) extends AST
+    sealed abstract class ASTDeclAbstract(varName: ASTId, varType: ASTVarType) extends AST {
+        lazy val name = varName.v
+    }
+    type ASTVarDecls = ASTDecls[ASTVarDecl];
+    type ASTParamDecls = ASTDecls[ASTParamDecl];
     case class ASTVarDecl(varName: ASTId, varType: ASTVarType) extends ASTDeclAbstract(varName, varType)
     case class ASTParamDecl(varName: ASTId, varType: ASTVarType, passByReference: Boolean)
         extends ASTDeclAbstract(varName, varType)
@@ -17,15 +20,14 @@ package object AST {
     sealed abstract class ASTBaseVarType extends ASTVarType
     case object ASTInt extends ASTBaseVarType
     case object ASTChar extends ASTBaseVarType
-    case class ASTArr(lbound: Int, ubound: Int, varType: ASTVarType) extends ASTVarType
+    case class ASTArr(lbound: Int, ubound: Int, varType: ASTBaseVarType) extends ASTVarType
 
-    sealed abstract class ASTSubrt(procName: ASTId, params: ASTParamDecls, vars: ASTVarDecls, body: ASTStmts) extends AST
-    case class ASTProc(procName: ASTId, params: ASTParamDecls, vars: ASTVarDecls, body: ASTStmts)
+    sealed abstract class ASTSubrt(procName: ASTId, params: ASTParamDecls, vars: ASTVarDecls, body: List[ASTStmt]) extends AST
+    case class ASTProc(procName: ASTId, params: ASTParamDecls, vars: ASTVarDecls, body: List[ASTStmt])
         extends ASTSubrt(procName, params, vars, body)
-    case class ASTFun(funName: ASTId, params: ASTParamDecls, vars: ASTVarDecls, body: ASTStmts, retType: ASTBaseVarType)
+    case class ASTFun(funName: ASTId, params: ASTParamDecls, vars: ASTVarDecls, body: List[ASTStmt], retType: ASTBaseVarType)
         extends ASTSubrt(funName, params, vars, body)
 
-    case class ASTStmts(stmts: List[ASTStmt]) extends AST
     sealed abstract class ASTStmt extends AST
     case class ASTAsg(lval: ASTExpr, rval: ASTExpr) extends ASTStmt
     case class ASTRead(expr: ASTExpr) extends ASTStmt
