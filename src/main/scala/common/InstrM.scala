@@ -36,7 +36,7 @@ package object InstrM {
     def toLeft(x: Int)    = InstrState(pos.toLeft(x), instr)
     def toRight(x: Int)   = InstrState(pos.toRight(x), instr)
     def push(str: String) = InstrState(pos, str :: instr)
-    def pop(str: String) = instr match {
+    def pop = instr match {
       case hd :: tl => (hd, InstrState(pos, tl))
       case Nil      => throw new IllegalArgumentException("can't pop out an empty instr stack")
     }
@@ -52,6 +52,9 @@ package object InstrM {
     }
   }
   type InstrM[A] = StateM[InstrState, A]
+  object InstrM {
+    def unit[A](a: A): InstrM[A] = StateM.unit(a)
+  }
 
   private object Code {
     val SET_ZERO  = "!0"
@@ -111,8 +114,8 @@ package object InstrM {
     def push(instr: String) = StateM { (s: InstrState) =>
       ((), s.push(instr))
     }
-    def pop(instr: String) = StateM { (s: InstrState) =>
-      s.pop(instr)
+    val pop = StateM { (s: InstrState) =>
+      s.pop
     }
   }
 }

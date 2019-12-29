@@ -26,7 +26,12 @@ object Codegen {
     case ASTInt  => 1
   }
 
-  private def moveTo(pos: Pos): InstrM[Unit] = ???
+  private def moveTo(pos: Pos): InstrM[Unit] =
+    if (pos.isGlobal) {
+      moveToGlobal(pos.p)
+    } else {
+      moveToLocal(pos.p)
+    }
   private def moveToLocal(p: Int): InstrM[Unit] =
     for {
       a <- Op.getPos
@@ -40,7 +45,7 @@ object Codegen {
         } yield ()
       }
     } yield ()
-  private def moveToGlobal(p: Int): InstrM[Unit] = 
+  private def moveToGlobal(p: Int): InstrM[Unit] =
     for {
       a <- Op.getPos
       _ <- if (a.isLocal) {
@@ -50,6 +55,16 @@ object Codegen {
         } yield ()
       } else {
         Op.moveRight(p - a.p)
+      }
+    } yield ()
+
+  private def convertToLVal: InstrM[Unit] =
+    for {
+      instr <- Op.pop
+      _ <- if (instr.last != 'u') {
+        throw new IllegalStateException("Can't convert a non lval to lval")
+      } else {
+        Op.push(instr.substring(0, instr.length() - 1))
       }
     } yield ()
 }
@@ -71,17 +86,20 @@ class Codegen(prog: ASTProg) {
   private def genStmts(
       stmts: List[ASTStmt]
   )(implicit local: LocalEnv, global: GlobalEnv) = {
-    val instrs = stmts map {
+    val instrs: List[InstrM[Unit]] = stmts map {
           case ASTAsg(lval, rval) =>
             for {
-              _ <- genExpr(lval)
               _ <- genExpr(rval)
-              // ???
+              _ <- genExpr(lval)
+              _ <- convertToLVal
+              _ <- Op.push("o")
             } yield ()
           case ASTRead(expr)  => ???
           case ASTWrite(expr) => ???
         }
-    ???
+    instrs.foldRight(InstrM.unit(())) { (a: InstrM[Unit], b: InstrM[Unit]) =>
+      b.flatMap((_: Unit) => a)
+    }
   }
   private def genExpr(
       expr: ASTExpr
@@ -89,15 +107,29 @@ class Codegen(prog: ASTProg) {
     case ASTIdxedVar(id, idx) => ???
     case ASTConst(v)          => Op.push(f"u$v%d")
     case ASTVar(id) => {
-      if (local contains id) {
-        moveToLocal(local(id).p)
-      } else if (global contains id) {
-        moveToGlobal(global(id).p)
-      } else {
-        throw new IllegalArgumentException("Can't find variables")
-      }
+      for {
+        _ <- if (local contains id) {
+          moveToLocal(local(id).p)
+        } else if (global contains id) {
+          moveToGlobal(global(id).p)
+        } else {
+          throw new IllegalArgumentException("Can't find variables")
+        }
+        _ <- Op.push("u")
+      } yield ()
     }
-    case ASTPlus(lv, rv)  => ???
-    case ASTMinus(lv, rv) => ???
+    // TODO: if oprand is variable, then we can actually do some optimizations...
+    case ASTPlus(lv, rv) =>
+      for {
+        _ <- genExpr(lv)
+        _ <- genExpr(rv)
+        _ <- Op.push("+")
+      } yield ()
+    case ASTMinus(lv, rv) =>
+      for {
+        _ <- genExpr(lv)
+        _ <- genExpr(rv)
+        _ <- Op.push("-")
+      } yield ()
   }
 }
