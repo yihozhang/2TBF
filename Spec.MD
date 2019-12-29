@@ -14,13 +14,13 @@ Different from Brainfuck, besides the normal tape which we call `Arr`, 2TBF has 
 
 `< num?`: move the `Arr` pointer to the left for `num` cells, where `num` is the value at the top of `Stk` if not specified.
 
-`r`: read one character from the input to the current cell at `Arr`.
+`r`: read one character from the input to the stack at `Arr`.
 
-`w`: write one character to the output from the current cell at `Arr`.
+`w`: write one character to the output from the stack at `Arr`.
 
-`R`: read one number from the input to the current cell at `Arr`.
+`R`: read one number from the input to the stack at `Arr`.
 
-`W`: write one number to the output from the current cell at `Arr`.
+`W`: write one number to the output from the stack at `Arr`.
 
 `! syb`: place a `syb` mark at the current cell at `Arr`. `syb` should be one digit in hex, i.e., from 0 to f.
 

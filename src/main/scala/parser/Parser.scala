@@ -1,7 +1,7 @@
 package ttbf.parser
 
 import scala.util.parsing.combinator._
-import ttbf.common.AST._
+import ttbf.common.ast._
 
 object TTBFParser extends RegexParsers {
     override def skipWhitespace = true
@@ -19,7 +19,7 @@ object TTBFParser extends RegexParsers {
          "[a-zA-Z_][a-zA-Z0-9_]*".r ^^ { id => ASTId(id.intern()) };
     }
     def astProg: Parser[ASTProg] = {
-        "program".ic ~ astId ~ ";" ~>
+        ("program".ic ~ astId ~ ";").? ~>
         astVarDecls ~
         rep(astSubrt) ~
         astBlockDot ^^ {

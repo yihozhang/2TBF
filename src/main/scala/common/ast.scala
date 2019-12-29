@@ -1,5 +1,5 @@
 package ttbf.common
-package object AST {
+package object ast {
 
     sealed abstract class AST
 

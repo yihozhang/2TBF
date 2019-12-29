@@ -1,14 +1,14 @@
 u96o
-uu8+>1ow<1 ;h
-uu5+>1ow<1 ;e
-uu12+>1ow<1;l
-uu12+>1ow<1;l
-uu15+>1ow<1;o
-u44>1ow<1  ;,
-u32>1ow<1  ;,
-uu23+>1ow<1;w
-uu15+>1ow<1;o
-uu18+>1ow<1;r
-uu12+>1ow<1;l
-uu4+>1ow<1 ;d
-u10>1ow<1  ;\n
+uu8+w ;h
+uu5+w ;e
+uu12+w;l
+uu12+w;l
+uu15+w;o
+u44w  ;,
+u32w  ;,
+uu23+w;w
+uu15+w;o
+uu18+w;r
+uu12+w;l
+uu4+w ;d
+u10w  ;\n

@@ -2,7 +2,7 @@ package ttbf.common
 
 import scala.collection.immutable.Nil
 
-package object InstrM {
+package object instrm {
 
   object PositionState extends Enumeration {
     type PositionState = Value
@@ -54,6 +54,10 @@ package object InstrM {
   type InstrM[A] = StateM[InstrState, A]
   object InstrM {
     def unit[A](a: A): InstrM[A] = StateM.unit(a)
+    val initialState = InstrState(Pos(PositionState.GLOBAL, 0), Nil)
+    def getState[T](instr: InstrM[T]): (T, InstrState) = instr runState initialState
+    def getInstrList[T](instr: InstrM[T]): List[String] = (getState(instr))._2.instr.reverse
+    def getInstrs[T](instr: InstrM[T]) = getInstrList(instr).flatten.mkString
   }
 
   private object Code {
@@ -67,7 +71,9 @@ package object InstrM {
 
   object Op {
     def moveLeft(x: Int): InstrM[Unit] =
-      if (x < 0)
+      if (x == 0)
+        InstrM.unit(())
+      else if (x < 0)
         moveRight(-x)
       else
         StateM { (s: InstrState) =>
@@ -75,7 +81,9 @@ package object InstrM {
         }
 
     def moveRight(x: Int): InstrM[Unit] =
-      if (x < 0)
+      if (x == 0)
+        InstrM.unit(())
+      else if (x < 0)
         moveLeft(-x)
       else
         StateM { (s: InstrState) =>

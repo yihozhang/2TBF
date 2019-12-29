@@ -149,13 +149,13 @@ int main(int argc, char* argv[]) {
             v1 = next_int_or(get_val());
             arr_p -= v1;
         } else if (op == 'r') {
-            set_val(get_char());
+            push(get_char());
         } else if (op == 'w') {
-            put_char(get_val());
+            put_char(top());
         } else if (op == 'R') {
-            set_val(get_int());
+            push(get_int());
         } else if (op == 'W') {
-            put_int(get_val());
+            put_int(top());
         } else if (op == '[') {
             if (!top()) instr_p = jump_table[instr_p];
         } else if (op == ']') {
