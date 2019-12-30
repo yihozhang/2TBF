@@ -33,7 +33,7 @@ package object ops {
         Op.moveRight(p - a.p)
       }
     } yield ()
-
+  
   def convertToLVal: InstrM[Unit] =
     for {
       instr <- Op.pop
@@ -43,5 +43,29 @@ package object ops {
         Op.push(instr.substring(0, instr.length() - 1))
       }
     } yield ()
-
+  def enterSubrtState = Op.setPos(Pos(PositionState.LOCAL, 0))
+  def enterMainBodyState = Op.setPos(Pos(PositionState.GLOBAL, 0))
+  def ifTopThenElse(thn: InstrM[Unit], els: InstrM[Unit]) =
+    for {
+      _ <- Op.push("u1u0u[o0o0o0u0u1u0]o0") // if val > 0 push {0, 1}; else push {1, 0}
+      _ <- Op.push("[")
+      _ <- thn
+      _ <- Op.push("-1") // to enforce exit
+      _ <- Op.push("]")
+      _ <- Op.push("o0") // pop the first condition var
+      _ <- Op.push("[")
+      _ <- els
+      _ <- Op.push("-1") // to enforce exit
+      _ <- Op.push("]")
+      _ <- Op.push("o0") // pop the second condition var
+    } yield ()
+  val decArrVal = Op.push("u-1o")
+  lazy val printError = {
+    "Error!!"
+      .map(_.toByte)
+      .map(code => Op.push("u" + code + "wo"))
+      .reduceRight { (a, b) =>
+        a.flatMap((_: Unit) => b)
+      }
+  }
 }

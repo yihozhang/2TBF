@@ -81,7 +81,7 @@ class CodegenSuite extends AnyFunSuite {
 
   test("genExpr at global level") {
     val decl      = "var a,b: integer;"
-    val globalEnv = env.GlobalEnv(env.declsToEnv(TTBFParser.parse(TTBFParser.astVarDecls, decl).get))
+    val globalEnv = env.declsToGlobalEnv(TTBFParser.parse(TTBFParser.astVarDecls, decl).get)
     val localEnv  = env.LocalEnv(Map())
 
     val expr = ASTPlus(ASTMinus(ASTVar(ASTId("a")), ASTVar(ASTId("b"))), ASTVar(ASTId("a")))
@@ -106,7 +106,7 @@ END."""
     val ast       = TTBFParser.parse(TTBFParser.astProg, prog).get
     val mainBody  = ast.mainBody
     val localEnv  = env.LocalEnv(Map())
-    val globalEnv = env.GlobalEnv(env.declsToEnv(ast.globalVars))
+    val globalEnv = env.declsToGlobalEnv(ast.globalVars)
     println {
       InstrM.getInstrs(Codegen.genStmts(mainBody)(localEnv, globalEnv))
     }

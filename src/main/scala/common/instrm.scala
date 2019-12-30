@@ -113,9 +113,9 @@ package object instrm {
       }
     }
 
-    // def setPos(pos: Pos) = StateM { (s: InstrState) =>
-    //   ((), s.setPos(pos))
-    // }
+    def setPos(pos: Pos) = StateM { (s: InstrState) =>
+      ((), s.setPos(pos))
+    }
     val getPos = StateM { (s: InstrState) =>
       (s.pos, s)
     }

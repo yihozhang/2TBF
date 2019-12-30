@@ -7,7 +7,13 @@ package object env {
     def apply(id: ASTId)    = env(id)
   }
   case class LocalEnv(env: Map[ASTId, Var])  extends Env(env)
+  object LocalEnv {
+    lazy val initial = LocalEnv(Map())
+  }
   case class GlobalEnv(env: Map[ASTId, Var]) extends Env(env)
+  object GlobalEnv {
+    lazy val initial = GlobalEnv(Map())
+  }
   class Var(
       val name: ASTId,
       val p: Int,
@@ -18,17 +24,35 @@ package object env {
       this(varDecl.varName, p, calcSize(varDecl.varType), varDecl.varType)
     }
   }
-  def declsToEnv(vars: ASTVarDecls) = {
-    var cur = 0
+  trait PassByReference extends Var
+
+  private def declsToEnvImpl(vars: ASTVarDecls, cur: Int): (Map[ASTId, Var], Int) = {
+    var _cur = cur
     val env = vars
       .map(astv => {
-        val v = new Var(astv, cur)
-        cur += v.size
+        val v = new Var(astv, _cur)
+        _cur += v.size
         (v.name, v)
       })
       .toMap
+    (env, _cur)
+  }
+  def declsToGlobalEnv(vars: ASTVarDecls): GlobalEnv =
+    GlobalEnv(declsToEnvImpl(vars, 0)._1)
 
-    env
+  def declsToLocalEnv(params: ASTParamDecls, vars: ASTVarDecls, retVal: Option[(ASTBaseVarType, ASTId)]): LocalEnv = {
+    val (retValEnv: Map[ASTId, Var], (paramEnv, cur)) = retVal match {
+      case None            => (Map(), declsToEnvImpl(params, 0))
+      case Some((typ, id)) => (Map(id -> new Var(id, 0, 1, typ)), declsToEnvImpl(params, 1))
+    }
+    val (varEnv, _) = declsToEnvImpl(vars, cur)
+    if ((paramEnv.keySet & varEnv.keySet).isEmpty &&
+        (retValEnv.keySet & paramEnv.keySet).isEmpty &&
+        (retValEnv.keySet & varEnv.keySet).isEmpty) {
+      LocalEnv(retValEnv ++ paramEnv ++ varEnv)
+    } else {
+      throw new IllegalArgumentException("parameter and var declaration both contains variables with same name")
+    }
   }
 
   def calcSize(typ: ASTVarType): Int = typ match {
