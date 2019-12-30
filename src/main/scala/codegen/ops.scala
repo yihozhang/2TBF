@@ -68,4 +68,5 @@ package object ops {
         a.flatMap((_: Unit) => b)
       }
   }
+  val mainSettingUpInstr = Op.push("!0")
 }

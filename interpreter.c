@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <string.h>
+
+#define DEBUG
 #define MAX_LENGTH 100000
 
 typedef struct {
@@ -16,7 +18,9 @@ short stk[MAX_LENGTH];
 ArrCell arr[MAX_LENGTH];
 int stk_p, arr_p, instr_p;
 char op; short v1, v2;
-
+#ifdef DEBUG
+FILE* logfile;
+#endif
 void read_instr(char filename[]) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
@@ -91,20 +95,19 @@ int get_int() {
 #define put_int(x) printf("%d", (x))
 
 void print_config() {
-    printf("instr: %c, instr_p: %d\n", op, instr_p);
-    printf("v1: %hd, v2: %hd\n", v1, v2);
-    printf("arr_p: %d, stk_p: %d\n", arr_p, stk_p);
-    printf("Arr: ");
+    fprintf(logfile, "instr: %c, instr_p: %d\n", op, instr_p);
+    fprintf(logfile, "v1: %hd, v2: %hd\n", v1, v2);
+    fprintf(logfile, "arr_p: %d, stk_p: %d\n", arr_p, stk_p);
+    fprintf(logfile, "Arr: ");
     for (int i = 0; i < arr_p; i++) {
-        printf("%hd ", arr[i].val);
+        fprintf(logfile, "%hd ", arr[i].val);
     }
-    printf("\nStk: ");
+    fprintf(logfile, "\nStk: ");
     for (int i = 0; i < stk_p; i++) {
-        printf("%hd ", stk[i]);
+        fprintf(logfile, "%hd ", stk[i]);
     }
-    puts("\n");
+    fprintf(logfile, "\n\n");
 }
-#define DEBUG
 int main(int argc, char* argv[]) {
     if (argc == 0) {
         printf("not enough parameters!");
@@ -113,10 +116,11 @@ int main(int argc, char* argv[]) {
     read_instr(argv[1]);
     build_jump_table();
 #ifdef DEBUG
-    printf("jump table\n");
+    logfile = fopen("interpreter.log","w");
+    fprintf(logfile, "jump table\n");
     for (int i = 0; i < instr_len; i++) {
         if (jump_table[i]) {
-            printf("from: %d, to: %d\n", i, jump_table[i]);
+            fprintf(logfile, "from: %d, to: %d\n", i, jump_table[i]);
         }
     }
 #endif

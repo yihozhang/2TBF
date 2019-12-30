@@ -108,7 +108,20 @@ END."""
     val localEnv  = env.LocalEnv(Map())
     val globalEnv = env.declsToGlobalEnv(ast.globalVars)
     println {
-      InstrM.getInstrs(Codegen.genStmts(mainBody)(localEnv, globalEnv))
+      InstrM.getInstrs(Codegen.genStmts(mainBody)(globalEnv, localEnv))
+    }
+  }
+  test("declaring some procedure and functions") {
+    val prog      = """var a,b: integer;
+BEGIN
+read(a);
+read(b);
+write(a+b);
+END."""
+    val astProg = TTBFParser.parse(TTBFParser.astProg, prog).get
+    println(astProg)
+    println {
+      InstrM.getInstrs(Codegen.genProg(astProg))
     }
   }
 }

@@ -76,22 +76,25 @@ package object Codegen {
   def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv): InstrM[Unit] =
     for {
       _ <- enterMainBodyState
+      _ <- mainSettingUpInstr
       _ <- genStmts(mainBody)(global, LocalEnv.initial)
     } yield ()
 
-  def genProg(prog: ASTProg): InstrM[Unit] =
-    for {
-      global <- InstrM.unit(declsToGlobalEnv(prog.globalVars))
-      _ <- {
-        val subrtInstr = prog.subrts.map((subrt => genSubrt(subrt)(global)))
-        subrtInstr.foldRight(printError) { (a, b) =>
-          val bb = for {
-            _ <- decArrVal
-            _ <- b
-          } yield ()
-          ifTopThenElse(bb, a)
-        }
-      }
-      _ <- genMainBody(prog.mainBody)(global)
-    } yield ()
+  def genProg(prog: ASTProg): InstrM[Unit] = {
+    val global         = declsToGlobalEnv(prog.globalVars)
+    val subrtInstrList = prog.subrts.map((subrt => genSubrt(subrt)(global)))
+    val subrtInstrs = subrtInstrList.foldRight(printError) { (a, b) =>
+      val bb = for {
+        _ <- decArrVal
+        _ <- b
+      } yield ()
+      val aa = for {
+        _ <- Op.push(">1")
+        _ <- a
+      } yield ()
+      ifTopThenElse(bb, aa)
+    }
+    val mainInstrs = genMainBody(prog.mainBody)(global)
+    ifTopThenElse(subrtInstrs, mainInstrs)
+  }
 }
