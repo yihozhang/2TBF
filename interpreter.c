@@ -16,7 +16,7 @@ char *instr;
 int instr_len, *jump_table;
 short stk[MAX_LENGTH];
 ArrCell arr[MAX_LENGTH];
-int stk_p, arr_p, instr_p;
+int stk_p, arr_p;
 char op; short v1, v2;
 #ifdef DEBUG
 FILE* logfile;
@@ -55,17 +55,16 @@ void build_jump_table() {
     free(stack);
 }
 
-bool has_next_int() {
-    return instr_p + 1 < instr_len && isdigit(instr[instr_p + 1]);
-}
+#define has_next_int() (instr_p + 1 < instr_len && isdigit(instr[instr_p + 1]))
 
-int next_int() {
+int next_int_impl(int *instr_p) {
     int x = 0;
-    while (instr_p + 1 < instr_len && isdigit(instr[instr_p + 1])) {
-        x = x * 10 + instr[++instr_p] - '0';
+    while ((*instr_p) + 1 < instr_len && isdigit(instr[(*instr_p) + 1])) {
+        x = x * 10 + instr[++(*instr_p)] - '0';
     }
     return x;
 }
+#define next_int() next_int_impl(&instr_p)
 
 #define next_int_or(x) (has_next_int() ? next_int() : (x))
 #define pop() stk[--stk_p]
@@ -94,7 +93,7 @@ int get_int() {
 }
 #define put_int(x) printf("%d", (x))
 
-void print_config() {
+void print_config(int instr_p) {
     fprintf(logfile, "instr: %c, instr_p: %d\n", op, instr_p);
     fprintf(logfile, "v1: %hd, v2: %hd\n", v1, v2);
     fprintf(logfile, "arr_p: %d, stk_p: %d\n", arr_p, stk_p);
@@ -108,22 +107,9 @@ void print_config() {
     }
     fprintf(logfile, "\n\n");
 }
-int main(int argc, char* argv[]) {
-    if (argc == 0) {
-        printf("not enough parameters!");
-        return 0;
-    }
-    read_instr(argv[1]);
-    build_jump_table();
-#ifdef DEBUG
-    logfile = fopen("interpreter.log","w");
-    fprintf(logfile, "jump table\n");
-    for (int i = 0; i < instr_len; i++) {
-        if (jump_table[i]) {
-            fprintf(logfile, "from: %d, to: %d\n", i, jump_table[i]);
-        }
-    }
-#endif
+
+void run() {
+    int instr_p = 0;
     while (instr_p < instr_len) {
         op = instr[instr_p];
         if (op == ';') {
@@ -172,14 +158,35 @@ int main(int argc, char* argv[]) {
             char syb = instr[++instr_p];
             syb = isdigit(syb) ? syb - '0' : syb - 'a' + 10;
             arr[arr_p].flag ^= 1 << syb;
+        } else if (op == 's') {
+            run();
         } else if (!isspace(op)) {
             printf("WARNING: unrecognized char %c", op);
         }
 # ifdef DEBUG
-        if (!isspace(op)) print_config();
+        if (!isspace(op)) print_config(instr_p);
 # endif
         ++instr_p;
     }
+}
+
+int main(int argc, char* argv[]) {
+    if (argc == 0) {
+        printf("not enough parameters!");
+        return 0;
+    }
+    read_instr(argv[1]);
+    build_jump_table();
+#ifdef DEBUG
+    logfile = fopen("interpreter.log","w");
+    fprintf(logfile, "jump table\n");
+    for (int i = 0; i < instr_len; i++) {
+        if (jump_table[i]) {
+            fprintf(logfile, "from: %d, to: %d\n", i, jump_table[i]);
+        }
+    }
+#endif
+    run();
 }
 
 
