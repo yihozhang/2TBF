@@ -25,7 +25,7 @@ package object Codegen {
           case ASTWrite(expr) =>
             for {
               _ <- genExpr(expr)
-              _ <- Op.push("Wo") // TODO: same as above
+              _ <- Op.push("Wo0") // TODO: same as above
             } yield ()
         }
     instrs.reduceRight { (a: InstrM[Unit], b: InstrM[Unit]) =>
@@ -63,15 +63,27 @@ package object Codegen {
         _ <- Op.push("-")
       } yield ()
   }
-  def genSubrt(subrt: ASTSubrt)(implicit global: GlobalEnv): InstrM[Unit] =
-    for {
-      _ <- enterSubrtState
-      local <- InstrM.unit {
-        val retValAndName = if (subrt.retVal.isDefined) Some(subrt.retVal.get, subrt.name) else None
-        declsToLocalEnv(subrt.params, subrt.vars, retValAndName)
-      }
-      _ <- genStmts(subrt.body)(global, local)
-    } yield ()
+  def genSubrt(subrt: ASTSubrt)(implicit global: GlobalEnv): InstrM[Unit] = {
+    val local = {
+      val retValAndName = if (subrt.retVal.isDefined) Some(subrt.retVal.get, subrt.name) else None
+      declsToLocalEnv(subrt.params, subrt.vars, retValAndName)
+    }
+
+    subrt match {
+      case ASTFun(funName, params, vars, body, retType) => for {
+        _ <- enterSubrtState
+        _ <- genStmts(subrt.body)(global, local)
+        _ <- moveToLocal(0)
+      } yield ()
+      case ASTProc(procName, params, vars, body) => for {
+        _ <- enterSubrtState
+        _ <- Op.push(">1")    // the next cell is the start of parameters
+        _ <- genStmts(subrt.body)(global, local)
+        _ <- moveToLocal(0)
+        _ <- Op.push("<1")
+      } yield ()
+    }
+  }
 
   def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv): InstrM[Unit] =
     for {
@@ -82,19 +94,12 @@ package object Codegen {
 
   def genProg(prog: ASTProg): InstrM[Unit] = {
     val global         = declsToGlobalEnv(prog.globalVars)
-    val subrtInstrList = prog.subrts.map((subrt => genSubrt(subrt)(global)))
-    val subrtInstrs = subrtInstrList.foldRight(printError) { (a, b) =>
-      val bb = for {
-        _ <- decArrVal
-        _ <- b
-      } yield ()
-      val aa = for {
-        _ <- Op.push(">1")
-        _ <- a
-      } yield ()
-      ifTopThenElse(bb, aa)
+    val subrtInstrList = prog.subrts.map { genSubrt(_)(global) }
+    val mainInstrs     = genMainBody(prog.mainBody)(global)
+    val instrs = (mainInstrs::subrtInstrList).foldRight(printError) { (a, b) =>
+      val bb = decArrVal flatMap { case () => b }
+      ifTopThenElse(bb, a)
     }
-    val mainInstrs = genMainBody(prog.mainBody)(global)
-    ifTopThenElse(subrtInstrs, mainInstrs)
+    instrs
   }
 }

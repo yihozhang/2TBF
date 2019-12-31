@@ -33,17 +33,20 @@ package object ops {
         Op.moveRight(p - a.p)
       }
     } yield ()
-  
+
   def convertToLVal: InstrM[Unit] =
     for {
       instr <- Op.pop
       _ <- if (instr.last != 'u') {
         throw new IllegalStateException("Can't convert a non lval to lval")
       } else {
-        Op.push(instr.substring(0, instr.length() - 1))
+        if (instr.length() == 1)
+          InstrM.unit(())
+        else
+          Op.push(instr.substring(0, instr.length() - 1))
       }
     } yield ()
-  def enterSubrtState = Op.setPos(Pos(PositionState.LOCAL, 0))
+  def enterSubrtState    = Op.setPos(Pos(PositionState.LOCAL, 0))
   def enterMainBodyState = Op.setPos(Pos(PositionState.GLOBAL, 0))
   def ifTopThenElse(thn: InstrM[Unit], els: InstrM[Unit]) =
     for {
