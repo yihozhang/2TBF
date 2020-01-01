@@ -125,5 +125,6 @@ package object instrm {
     val pop = StateM { (s: InstrState) =>
       s.pop
     }
+    def seq[T](instrs: List[InstrM[T]]): InstrM[T] = instrs reduceRight ((a, b) => a flatMap ((_) => b))
   }
 }

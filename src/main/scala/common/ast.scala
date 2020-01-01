@@ -62,4 +62,7 @@ package object ast {
   case class ASTIdxedVar(id: ASTId, idx: ASTExpr)             extends ASTExpr
 
   case class ASTId(v: String) extends AST
+
+  case class ASTFunCall(fun: ASTId, params: List[ASTExpr]) extends ASTExpr
+  case class ASTSubrtCall(subrt: ASTId, params: List[ASTExpr]) extends ASTStmt
 }

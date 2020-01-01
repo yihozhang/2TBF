@@ -87,15 +87,37 @@ object TTBFParser extends RegexParsers {
   val astBlockDot       = astBlock(".")
   val astBlockSemicolon = astBlock(";")
 
+  val astSubrtCall: Parser[ASTSubrtCall] = {
+    (astId ~ "(" ~ opt(repsep(astExpr, ",") ~ astExpr) ~ ")") ^^ {
+      case funName ~ _ ~ args ~ _ => {
+        val realArgs = args match {
+          case None         => List()
+          case Some(xs ~ x) => (xs ++ List(x))
+        }
+        ASTSubrtCall(funName, realArgs)
+      }
+    }
+  }
+
   val astExpra: Parser[ASTExpr] = {
     (astConst ^^ {
       ASTConst(_)
     }) | (astId ^^ {
       ASTVar(_)
-    }) | ("(" ~> astExpr <~ ")") |
+    }) |
+      ("(" ~> astExpr <~ ")") |
       (astId ~ "[" ~ astExpr ~ "]" ^^ {
         case id ~ _ ~ idx ~ _ => ASTIdxedVar(id, idx)
-      })
+      }) |
+      (astId ~ "(" ~ opt(repsep(astExpr, ",") ~ astExpr) ~ ")") ^^ {
+        case funName ~ _ ~ args ~ _ => {
+          val realArgs = args match {
+            case None         => List()
+            case Some(xs ~ x) => (xs ++ List(x))
+          }
+          ASTFunCall(funName, realArgs)
+        }
+      }
   }
 
   val astExpr: Parser[ASTExpr] = {
@@ -118,7 +140,7 @@ object TTBFParser extends RegexParsers {
   }
 
   val astStmt: Parser[ASTStmt] = {
-    astAsg | astRead | astWrite
+    astAsg | astRead | astWrite | astSubrtCall
   }
 
   val astRead: Parser[ASTRead] = {
