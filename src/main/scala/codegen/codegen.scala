@@ -52,13 +52,12 @@ package object Codegen {
           Pos(PositionState.GLOBAL, global.largestPos + 1)
       )
       _ <- ops.moveTo(pos)
-      _ <- Op.push("u" + lookupTable(name))
+      _ <- Op.push("u" + lookupTable(name) + "o")
       _ <- Op.seq(instrs)
+      _ <- ops.moveTo(pos)
+      _ <- Op.push("s")
       _ <- if (needsRetVal) {
-        for {
-          _ <- ops.moveTo(pos)
-          _ <- Op.push("u")
-        } yield ()
+        Op.push("u")
       } else InstrM.unit(())
     } yield ()
   }
@@ -67,9 +66,7 @@ package object Codegen {
       stmts: List[ASTStmt]
   )(implicit global: GlobalEnv, local: Option[LocalEnv], lookupTable: LookupTable) = {
     val instrs: List[InstrM[Unit]] = stmts.map(genStmt(_))
-    instrs.reduceRight { (a: InstrM[Unit], b: InstrM[Unit]) =>
-      a.flatMap((_: Unit) => b)
-    }
+    Op.seq(instrs)
   }
   def genExpr(
       expr: ASTExpr // change to TypedExpr later

@@ -88,13 +88,9 @@ object TTBFParser extends RegexParsers {
   val astBlockSemicolon = astBlock(";")
 
   val astSubrtCall: Parser[ASTSubrtCall] = {
-    (astId ~ "(" ~ opt(repsep(astExpr, ",") ~ astExpr) ~ ")") ^^ {
+    astId ~ "(" ~ repsep(astExpr, ",") ~ ")" <~ ";" ^^ {
       case funName ~ _ ~ args ~ _ => {
-        val realArgs = args match {
-          case None         => List()
-          case Some(xs ~ x) => (xs ++ List(x))
-        }
-        ASTSubrtCall(funName, realArgs)
+        ASTSubrtCall(funName, args)
       }
     }
   }
@@ -102,22 +98,15 @@ object TTBFParser extends RegexParsers {
   val astExpra: Parser[ASTExpr] = {
     (astConst ^^ {
       ASTConst(_)
+    }) | (astId ~ "[" ~ astExpr ~ "]" ^^ {
+      case id ~ _ ~ idx ~ _ => ASTIdxedVar(id, idx)
+    }) | (astId ~ "(" ~ repsep(astExpr, ",") ~ ")" ^^ {
+      case funName ~ _ ~ args ~ _ => {
+        ASTFunCall(funName, args)
+      }
     }) | (astId ^^ {
       ASTVar(_)
-    }) |
-      ("(" ~> astExpr <~ ")") |
-      (astId ~ "[" ~ astExpr ~ "]" ^^ {
-        case id ~ _ ~ idx ~ _ => ASTIdxedVar(id, idx)
-      }) |
-      (astId ~ "(" ~ opt(repsep(astExpr, ",") ~ astExpr) ~ ")") ^^ {
-        case funName ~ _ ~ args ~ _ => {
-          val realArgs = args match {
-            case None         => List()
-            case Some(xs ~ x) => (xs ++ List(x))
-          }
-          ASTFunCall(funName, realArgs)
-        }
-      }
+    }) | ("(" ~> astExpr <~ ")")
   }
 
   val astExpr: Parser[ASTExpr] = {

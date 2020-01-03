@@ -64,12 +64,10 @@ package object ops {
     } yield ()
   val decArrVal = Op.push("u-1o")
   lazy val printError = {
-    "Error!!"
+    val instrs = "Error!!"
       .map(_.toByte)
-      .map(code => Op.push("u" + code + "wo"))
-      .reduceRight { (a, b) =>
-        a.flatMap((_: Unit) => b)
-      }
+      .map(code => Op.push("u" + code + "wo")).toList
+    Op.seq(instrs)
   }
   val mainSettingUpInstr = Op.push("!0")
 }

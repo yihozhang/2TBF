@@ -53,11 +53,11 @@ package object instrm {
   }
   type InstrM[A] = StateM[InstrState, A]
   object InstrM {
-    def unit[A](a: A): InstrM[A] = StateM.unit(a)
-    val initialState = InstrState(Pos(PositionState.GLOBAL, 0), Nil)
-    def getState[T](instr: InstrM[T]): (T, InstrState) = instr runState initialState
+    def unit[A](a: A): InstrM[A]                        = StateM.unit(a)
+    val initialState                                    = InstrState(Pos(PositionState.GLOBAL, 0), Nil)
+    def getState[T](instr: InstrM[T]): (T, InstrState)  = instr runState initialState
     def getInstrList[T](instr: InstrM[T]): List[String] = (getState(instr))._2.instr.reverse
-    def getInstrs[T](instr: InstrM[T]) = getInstrList(instr).flatten.mkString
+    def getInstrs[T](instr: InstrM[T])                  = getInstrList(instr).flatten.mkString
   }
 
   private object Code {
@@ -125,6 +125,8 @@ package object instrm {
     val pop = StateM { (s: InstrState) =>
       s.pop
     }
-    def seq[T](instrs: List[InstrM[T]]): InstrM[T] = instrs reduceRight ((a, b) => a flatMap ((_) => b))
+    def seq[T](instrs: List[InstrM[T]]): InstrM[Unit] = instrs.foldRight(InstrM.unit()) { (a, b) =>
+      a flatMap ((_) => b)
+    }
   }
 }

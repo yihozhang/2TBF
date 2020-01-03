@@ -85,9 +85,9 @@ class CodegenSuite extends AnyFunSuite {
     val localEnv  = env.LocalEnv(Map())
 
     val expr = ASTPlus(ASTMinus(ASTVar(ASTId("a")), ASTVar(ASTId("b"))), ASTVar(ASTId("a")))
-    println {
-      InstrM.getInstrList(Codegen.genExpr(expr)(localEnv, globalEnv))
-    }
+    // println {
+    //   InstrM.getInstrList(Codegen.genExpr(expr)(localEnv, globalEnv))
+    // }
   }
 
   test("genStmt Assignment at global level") {
@@ -97,31 +97,40 @@ class CodegenSuite extends AnyFunSuite {
 // b:=2;
 // a:=a+b+a-b;
 // END."""
-    val prog      = """var a,b: integer;
-BEGIN
-read(a);
-read(b);
-write(a+b);
-END."""
-    val ast       = TTBFParser.parse(TTBFParser.astProg, prog).get
-    val mainBody  = ast.mainBody
-    val localEnv  = env.LocalEnv(Map())
-    val globalEnv = env.declsToGlobalEnv(ast.globalVars)
-    println {
-      InstrM.getInstrs(Codegen.genStmts(mainBody)(globalEnv, localEnv))
-    }
-  }
-  test("declaring some procedure and functions") {
-    val prog      = """var a,b: integer;
+    val prog    = """var a,b: integer;
 BEGIN
 read(a);
 read(b);
 write(a+b);
 END."""
     val astProg = TTBFParser.parse(TTBFParser.astProg, prog).get
+    InstrM.getInstrList(Codegen.genProg(astProg))
+  }
+  test("declaring some procedure and functions") {
+    val prog    = """var a,b: integer;
+procedure f(a,b:integer);
+var d:integer;
+begin
+d:=a+b;
+write(d);
+end;
+FUNCTION g(a,b:integer):integer;
+begin
+write(123);
+g:=a+b;
+end;
+BEGIN
+a:=1;
+b:=2;
+g(a,b);
+f(a,b);
+write(g(1,0));
+END."""
+    val astProg = TTBFParser.parse(TTBFParser.astProg, prog)
+    // println(TTBFParser.parse(TTBFParser.astExpra, "f(1)"));
     println(astProg)
     println {
-      InstrM.getInstrs(Codegen.genProg(astProg))
+      InstrM.getInstrList(Codegen.genProg(astProg.get))
     }
   }
 }
