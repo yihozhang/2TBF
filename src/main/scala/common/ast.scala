@@ -15,7 +15,7 @@ package object ast {
   case class ASTVarDecl(varName: ASTId, varType: ASTVarType) {
     lazy val name = varName.v
   }
-  trait PassByReference extends ASTVarDecl
+  trait PassByReference                                                extends ASTVarDecl
   sealed abstract class ASTVarType                                     extends AST
   sealed abstract class ASTBaseVarType                                 extends ASTVarType
   case object ASTInt                                                   extends ASTBaseVarType
@@ -28,7 +28,7 @@ package object ast {
       val vars: ASTVarDecls,
       val body: List[ASTStmt]
   ) extends AST {
-      def retVal: Option[ASTBaseVarType]
+    def retVal: Option[ASTBaseVarType]
   }
   case class ASTProc(
       procName: ASTId,
@@ -36,7 +36,7 @@ package object ast {
       override val vars: ASTVarDecls,
       override val body: List[ASTStmt]
   ) extends ASTSubrt(procName, params, vars, body) {
-      val retVal = None
+    val retVal = None
   }
   case class ASTFun(
       funName: ASTId,
@@ -45,13 +45,15 @@ package object ast {
       override val body: List[ASTStmt],
       retType: ASTBaseVarType
   ) extends ASTSubrt(funName, params, vars, body) {
-      val retVal = Some(retType)
+    val retVal = Some(retType)
   }
 
-  sealed abstract class ASTStmt                   extends AST
-  case class ASTAsg(lval: ASTExpr, rval: ASTExpr) extends ASTStmt
-  case class ASTRead(expr: ASTExpr)               extends ASTStmt
-  case class ASTWrite(expr: ASTExpr)              extends ASTStmt
+  sealed abstract class ASTStmt                                       extends AST
+  case class ASTAsg(lval: ASTExpr, rval: ASTExpr)                     extends ASTStmt
+  case class ASTRead(expr: ASTExpr)                                   extends ASTStmt
+  case class ASTWrite(expr: ASTExpr)                                  extends ASTStmt
+  case class ASTIf(cond: ASTExpr, thn: ASTStmt, els: Option[ASTStmt]) extends ASTStmt
+  case class ASTBlock(stmts: List[ASTStmt]) extends ASTStmt
 
   sealed abstract class ASTExpr                               extends AST
   class TypedExpr[T <: ASTExpr](val expr: T, typ: ASTVarType) extends ASTExpr
@@ -63,6 +65,6 @@ package object ast {
 
   case class ASTId(v: String) extends AST
 
-  case class ASTFunCall(fun: ASTId, params: List[ASTExpr]) extends ASTExpr
+  case class ASTFunCall(fun: ASTId, params: List[ASTExpr])     extends ASTExpr
   case class ASTSubrtCall(subrt: ASTId, params: List[ASTExpr]) extends ASTStmt
 }

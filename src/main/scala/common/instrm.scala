@@ -32,29 +32,29 @@ package object instrm {
     }
   }
 
-  case class InstrState(val pos: Pos, val instr: List[String], val posSaved: Option[Pos] = None) {
-    def toLeft(x: Int)    = InstrState(pos.toLeft(x), instr)
-    def toRight(x: Int)   = InstrState(pos.toRight(x), instr)
-    def push(str: String) = InstrState(pos, str :: instr)
+  case class InstrState(val pos: Pos, val instr: List[String], val posSaved: Option[Pos]) {
+    def toLeft(x: Int)    = InstrState(pos.toLeft(x), instr, posSaved)
+    def toRight(x: Int)   = InstrState(pos.toRight(x), instr, posSaved)
+    def push(str: String) = InstrState(pos, str :: instr, posSaved)
     def pop = instr match {
-      case hd :: tl => (hd, InstrState(pos, tl))
+      case hd :: tl => (hd, InstrState(pos, tl, posSaved))
       case Nil      => throw new IllegalArgumentException("can't pop out an empty instr stack")
     }
     def top = instr match {
       case hd :: tl => (hd, this)
       case Nil      => throw new IllegalArgumentException("can't get the top of an empty instr stack")
     }
-    def setPos(newPos: Pos) = InstrState(newPos, instr)
+    def setPos(newPos: Pos) = InstrState(newPos, instr, posSaved)
     def savePos()           = InstrState(pos, instr, Some(pos))
     def restoreSavedPos() = posSaved match {
       case None        => throw new IllegalStateException("try to restore to a local state that does not exist")
-      case Some(value) => InstrState(value, instr)
+      case Some(value) => InstrState(value, instr, None)
     }
   }
   type InstrM[A] = StateM[InstrState, A]
   object InstrM {
     def unit[A](a: A): InstrM[A]                        = StateM.unit(a)
-    val initialState                                    = InstrState(Pos(PositionState.GLOBAL, 0), Nil)
+    val initialState                                    = InstrState(Pos(PositionState.GLOBAL, 0), Nil, None)
     def getState[T](instr: InstrM[T]): (T, InstrState)  = instr runState initialState
     def getInstrList[T](instr: InstrM[T]): List[String] = (getState(instr))._2.instr.reverse
     def getInstrs[T](instr: InstrM[T])                  = getInstrList(instr).flatten.mkString
@@ -65,7 +65,7 @@ package object instrm {
     val ELIM_ZERO = "!0"
     // val MOVE_TO_ZERO = "?0-1[o0<1?0-1]"
     // NOTE: only use this when move from local to global scope
-    val MOVE_FROM_LOCAL_TO_GLOBAL_ZERO    = "u0?0-1[o0<1+1?0-1]o"
+    val MOVE_FROM_LOCAL_TO_GLOBAL_ZERO    = "u0?0-1[o0<1+1?0-1]o0o"
     val RESTORE_FROM_GLOBAL_ZERO_TO_LOCAL = "u[>1-1]o0"
   }
 

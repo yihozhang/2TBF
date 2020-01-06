@@ -22,11 +22,11 @@ object TTBFParser extends RegexParsers {
       };
   def astProg: Parser[ASTProg] =
     ("program".ic ~ astId ~ ";").? ~>
-        astVarDecls ~
+        astVarDecls.? ~
         rep(astSubrt) ~
         astBlockDot ^^ {
         case globalVars ~ subrts ~ mainBody =>
-          ASTProg(globalVars, subrts, mainBody)
+          ASTProg(globalVars.getOrElse(Nil), subrts, mainBody)
       }
 
   def astVarDecls: Parser[ASTVarDecls] =
@@ -66,8 +66,8 @@ object TTBFParser extends RegexParsers {
         }
       }
   def astSubrtBody: Parser[(ASTVarDecls, List[ASTStmt])] =
-    astVarDecls ~ astBlockSemicolon ^^ {
-        case varDecls ~ stmts => (varDecls, stmts)
+    astVarDecls.? ~ astBlockSemicolon ^^ {
+        case varDecls ~ stmts => (varDecls.getOrElse(Nil), stmts)
       }
   def astParam: Parser[List[ASTVarDecl]] =
     "var".ic.? ~ repsep(astId, ",") ~ ":" ~ astVarType ^^ {
@@ -95,7 +95,7 @@ object TTBFParser extends RegexParsers {
     }
   }
 
-  val astExpra: Parser[ASTExpr] = {
+  def astExpra: Parser[ASTExpr] = {
     (astConst ^^ {
       ASTConst(_)
     }) | (astId ~ "[" ~ astExpr ~ "]" ^^ {
@@ -109,7 +109,7 @@ object TTBFParser extends RegexParsers {
     }) | ("(" ~> astExpr <~ ")")
   }
 
-  val astExpr: Parser[ASTExpr] = {
+  def astExpr: Parser[ASTExpr] = {
     astExpra ~ rep("\\+|\\-".r ~ astExpra) ^^ {
       case lv ~ rest => {
         rest.foldLeft(lv)((a, opb) => {
@@ -122,28 +122,35 @@ object TTBFParser extends RegexParsers {
     }
   }
 
-  val astAsg: Parser[ASTAsg] = {
+  def astAsg: Parser[ASTAsg] = {
     astExpr ~ ":=" ~ astExpr ~ ";" ^^ {
       case lval ~ _ ~ rval ~ _ => ASTAsg(lval, rval)
     }
   }
 
-  val astStmt: Parser[ASTStmt] = {
-    astAsg | astRead | astWrite | astSubrtCall
+  def astStmt: Parser[ASTStmt] = {
+    astAsg | astRead | astWrite |
+    astSubrtCall | astIf | astBlockSemicolon ^^ { stmts => ASTBlock(stmts)}
   }
 
-  val astRead: Parser[ASTRead] = {
+  def astRead: Parser[ASTRead] = {
     "read".ic ~ "(" ~> astExpr <~ ")" ~ ";" ^^ {
       ASTRead(_)
     }
   }
 
-  val astWrite: Parser[ASTWrite] = {
+  def astWrite: Parser[ASTWrite] = {
     "write".ic ~ "(" ~> astExpr <~ ")" ~ ";" ^^ {
       ASTWrite(_)
     }
   }
 
   def parseProg(program: String) = parse(astProg, program)
+
+  def astIf: Parser[ASTIf] = {
+    "if".ic ~ astExpr ~ "then" ~ astStmt  ~ ("else" ~> astStmt).? ^^ {
+      case _ ~ cond ~ _ ~ thn ~ els => ASTIf(cond, thn, els)
+    }
+  }
 
 }

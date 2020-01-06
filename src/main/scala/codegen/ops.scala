@@ -48,9 +48,11 @@ package object ops {
     } yield ()
   def enterSubrtState    = Op.setPos(Pos(PositionState.LOCAL, 0))
   def enterMainBodyState = Op.setPos(Pos(PositionState.GLOBAL, 0))
-  def ifTopThenElse(thn: InstrM[Unit], els: InstrM[Unit]) =
+  def ifCondThenElse(cond: InstrM[Unit], thn: InstrM[Unit], els: InstrM[Unit]) =
     for {
-      _ <- Op.push("u1u0u[o0o0o0u0u1u0]o0") // if val > 0 push {0, 1}; else push {1, 0}
+      _ <- Op.push("u1u0")
+      _ <- cond
+      _ <- Op.push("[o0o0o0u0u1u0]o0") // if val > 0 push {0, 1}; else push {1, 0}
       _ <- Op.push("[")
       _ <- thn
       _ <- Op.push("-1") // to enforce exit

@@ -6,7 +6,7 @@ package object Codegen {
   import ops._
   import env._
 
-  def genStmt(stmt: ASTStmt)(implicit global: GlobalEnv, local: Option[LocalEnv], lookupTable: LookupTable) =
+  def genStmt(stmt: ASTStmt)(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv): InstrM[Unit] =
     stmt match {
       case ASTAsg(lval, rval) =>
         for {
@@ -28,13 +28,16 @@ package object Codegen {
         } yield ()
       case ASTSubrtCall(subrt, params) =>
         setupSubrtCall(subrt, params, false)
+      case ASTBlock(stmts) => genStmts(stmts)
+      case ASTIf(cond, thn, els) =>
+        ifCondThenElse(genExpr(cond), genStmt(thn), genStmt(els.getOrElse(ASTBlock(Nil))))
     }
 
   def setupSubrtCall(
       name: ASTId,
       params: List[ASTExpr],
       needsRetVal: Boolean
-  )(implicit global: GlobalEnv, local: Option[LocalEnv], lookupTable: LookupTable) = {
+  )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv) = {
     val instrs = params map { param =>
           for {
             pos <- Op.getPos // remember current position
@@ -52,7 +55,7 @@ package object Codegen {
           Pos(PositionState.GLOBAL, global.largestPos + 1)
       )
       _ <- ops.moveTo(pos)
-      _ <- Op.push("u" + lookupTable(name) + "o")
+      _ <- Op.push("u" + subrtEnv(name) + "o")
       _ <- Op.seq(instrs)
       _ <- ops.moveTo(pos)
       _ <- Op.push("s")
@@ -64,13 +67,13 @@ package object Codegen {
 
   def genStmts(
       stmts: List[ASTStmt]
-  )(implicit global: GlobalEnv, local: Option[LocalEnv], lookupTable: LookupTable) = {
+  )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv) = {
     val instrs: List[InstrM[Unit]] = stmts.map(genStmt(_))
     Op.seq(instrs)
   }
   def genExpr(
       expr: ASTExpr // change to TypedExpr later
-  )(implicit global: GlobalEnv, local: Option[LocalEnv], lookupTable: LookupTable): InstrM[Unit] = expr match {
+  )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv): InstrM[Unit] = expr match {
     case ASTIdxedVar(id, idx) => ???
     case ASTConst(v)          => Op.push(f"u$v%d")
     case ASTVar(id) => {
@@ -80,7 +83,7 @@ package object Codegen {
         } else if (global contains id) {
           moveToGlobal(global(id).p)
         } else {
-          throw new IllegalArgumentException("Can't find variables")
+          throw new IllegalArgumentException("Can't find variables: " + id.v)
         }
         _ <- Op.push("u")
       } yield ()
@@ -100,7 +103,7 @@ package object Codegen {
       } yield ()
     case ASTFunCall(fun, params) => setupSubrtCall(fun, params, true)
   }
-  def genSubrt(subrt: ASTSubrt)(implicit global: GlobalEnv, lookupTable: LookupTable): InstrM[Unit] = {
+  def genSubrt(subrt: ASTSubrt)(implicit global: GlobalEnv, subrtEnv: SubrtEnv): InstrM[Unit] = {
     val local = {
       val retValAndName = if (subrt.retVal.isDefined) Some(subrt.retVal.get, subrt.name) else None
       declsToLocalEnv(subrt.params, subrt.vars, retValAndName)
@@ -110,35 +113,35 @@ package object Codegen {
       case ASTFun(funName, params, vars, body, retType) =>
         for {
           _ <- enterSubrtState
-          _ <- genStmts(subrt.body)(global, Some(local), lookupTable)
+          _ <- genStmts(subrt.body)(global, Some(local), subrtEnv)
           _ <- moveToLocal(0)
         } yield ()
       case ASTProc(procName, params, vars, body) =>
         for {
           _ <- enterSubrtState
           _ <- Op.push(">1") // the next cell is the start of parameters
-          _ <- genStmts(subrt.body)(global, Some(local), lookupTable)
+          _ <- genStmts(subrt.body)(global, Some(local), subrtEnv)
           _ <- moveToLocal(0)
           _ <- Op.push("<1")
         } yield ()
     }
   }
 
-  def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv, lookupTable: LookupTable): InstrM[Unit] =
+  def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv, subrtEnv: SubrtEnv): InstrM[Unit] =
     for {
       _ <- enterMainBodyState
       _ <- mainSettingUpInstr
-      _ <- genStmts(mainBody)(global, None, lookupTable)
+      _ <- genStmts(mainBody)(global, None, subrtEnv)
     } yield ()
 
   def genProg(prog: ASTProg): InstrM[Unit] = {
     val global         = declsToGlobalEnv(prog.globalVars)
-    val lookupTable    = subrtsToLookupTable(prog.subrts)
-    val subrtInstrList = prog.subrts.map { genSubrt(_)(global, lookupTable) }
-    val mainInstrs     = genMainBody(prog.mainBody)(global, lookupTable)
+    val subrtEnv       = subrtsToSubrtEnv(prog.subrts)
+    val subrtInstrList = prog.subrts.map { genSubrt(_)(global, subrtEnv) }
+    val mainInstrs     = genMainBody(prog.mainBody)(global, subrtEnv)
     val instrs = (mainInstrs :: subrtInstrList).foldRight(printError) { (a, b) =>
       val bb = decArrVal flatMap { case () => b }
-      ifTopThenElse(bb, a)
+      ifCondThenElse(Op.push("u"), bb, a)
     }
     instrs
   }

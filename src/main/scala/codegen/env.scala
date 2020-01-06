@@ -5,7 +5,9 @@ package object env {
   class Env(env: Map[ASTId, Var]) {
     def contains(id: ASTId) = env.contains(id)
     def apply(id: ASTId)    = env(id)
-    lazy val largestPos = env.map(_._2.p).max
+    lazy val largestPos = {
+      (-1::(env.map(_._2.p).toList)).max
+    }
   }
   case class LocalEnv(env: Map[ASTId, Var])  extends Env(env)
   object LocalEnv {
@@ -39,7 +41,7 @@ package object env {
     (env, _cur)
   }
   def declsToGlobalEnv(vars: ASTVarDecls): GlobalEnv =
-    GlobalEnv(declsToEnvImpl(vars, 0)._1)
+    GlobalEnv(declsToEnvImpl(vars, 1)._1)
 
   def declsToLocalEnv(params: ASTParamDecls, vars: ASTVarDecls, retVal: Option[(ASTBaseVarType, ASTId)]): LocalEnv = {
     val (retValEnv: Map[ASTId, Var], (paramEnv, cur)) = retVal match {
@@ -63,11 +65,11 @@ package object env {
     case ASTInt  => 1
   }
 
-  case class LookupTable(table: Map[ASTId, Int]) {
+  case class SubrtEnv(table: Map[ASTId, Int]) {
     def apply(id: ASTId) = table(id)
   }
-  def subrtsToLookupTable(subrts: List[ASTSubrt]): LookupTable = {
-    LookupTable(subrts.zipWithIndex.map {
+  def subrtsToSubrtEnv(subrts: List[ASTSubrt]): SubrtEnv = {
+    SubrtEnv(subrts.zipWithIndex.map {
       case (subrt, idx) => (subrt.name, idx + 1)
     } toMap)
   }
