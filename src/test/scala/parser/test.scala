@@ -107,30 +107,44 @@ END."""
     InstrM.getInstrList(Codegen.genProg(astProg))
   }
   test("declaring some procedure and functions") {
-    val prog    = """var a,b: integer;
-procedure f(a,b:integer);
-var d:integer;
+//     val prog    = """var a,b: integer;
+// procedure f();
+// var d:integer;
+// begin
+// d:=a+b;
+// write(d);
+// end;
+// FUNCTION g(a,b:integer):integer;
+// begin
+// write(123);
+// g:=a+b;
+// end;
+// BEGIN
+// a:=1;
+// b:=2;
+// g(a,b);
+// f();
+// write(g(1,0));
+// END."""
+    val prog = """
+function f(n:integer):integer;
 begin
-d:=a+b;
-write(d);
+if n then
+  if n - 1 then
+    f := f(n-1) + f(n-2);
+  else
+    f := 1;
+else
+    f := 1;
 end;
-FUNCTION g(a,b:integer):integer;
 begin
-write(123);
-g:=a+b;
-end;
-BEGIN
-a:=1;
-b:=2;
-g(a,b);
-f(a,b);
-write(g(1,0));
-END."""
+write(f(2));
+end."""
     val astProg = TTBFParser.parse(TTBFParser.astProg, prog)
     // println(TTBFParser.parse(TTBFParser.astExpra, "f(1)"));
     println(astProg)
     println {
-      InstrM.getInstrList(Codegen.genProg(astProg.get))
+      InstrM.getInstrs(Codegen.genProg(astProg.get))
     }
   }
 }

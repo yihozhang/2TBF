@@ -5,15 +5,17 @@ package object env {
   class Env(env: Map[ASTId, Var]) {
     def contains(id: ASTId) = env.contains(id)
     def apply(id: ASTId)    = env(id)
-    lazy val largestPos = {
-      (-1::(env.map(_._2.p).toList)).max
+    def largestPos = {
+      env.map(_._2.p).toList.max
     }
   }
   case class LocalEnv(env: Map[ASTId, Var])  extends Env(env)
   object LocalEnv {
     lazy val initial = LocalEnv(Map())
   }
-  case class GlobalEnv(env: Map[ASTId, Var]) extends Env(env)
+  case class GlobalEnv(env: Map[ASTId, Var]) extends Env(env) {
+    override def largestPos = if (env.isEmpty) 0 else super.largestPos
+  }
   object GlobalEnv {
     lazy val initial = GlobalEnv(Map())
   }

@@ -129,9 +129,11 @@ package object Codegen {
 
   def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv, subrtEnv: SubrtEnv): InstrM[Unit] =
     for {
+      pos <- Op.getPos
       _ <- enterMainBodyState
       _ <- mainSettingUpInstr
       _ <- genStmts(mainBody)(global, None, subrtEnv)
+      _ <- Op.setPos(pos) // for the harmony of the overall if-branching structure
     } yield ()
 
   def genProg(prog: ASTProg): InstrM[Unit] = {

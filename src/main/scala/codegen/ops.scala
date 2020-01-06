@@ -52,14 +52,17 @@ package object ops {
     for {
       _ <- Op.push("u1u0")
       _ <- cond
+      pos <- Op.getPos
       _ <- Op.push("[o0o0o0u0u1u0]o0") // if val > 0 push {0, 1}; else push {1, 0}
       _ <- Op.push("[")
       _ <- thn
+      _ <- ops.moveTo(pos)
       _ <- Op.push("-1") // to enforce exit
       _ <- Op.push("]")
       _ <- Op.push("o0") // pop the first condition var
       _ <- Op.push("[")
       _ <- els
+      _ <- ops.moveTo(pos)
       _ <- Op.push("-1") // to enforce exit
       _ <- Op.push("]")
       _ <- Op.push("o0") // pop the second condition var
