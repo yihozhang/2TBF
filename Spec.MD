@@ -25,3 +25,5 @@ Different from Brainfuck, besides the normal tape which we call `Arr`, 2TBF has 
 `! syb`: place a `syb` mark at the current cell at `Arr`. `syb` should be one digit in hex, i.e., from 0 to f.
 
 `? syb`: check if `syb` is marked at the current cell at `Arr`. Push 0 to the stack if yes and 1 otherwise.
+
+`s`: simulate the program itself from start as a subroutine using the current array and stack; continue current program when the subroutine terminates.
