@@ -4,12 +4,12 @@ package object ops {
   import ttbf.common.instrm._
 
   private object Code {
-    val SET_ZERO  = "!0"
-    val ELIM_ZERO = "!0"
-    // val MOVE_TO_ZERO = "?0-1[o0<1?0-1]"
-    // NOTE: only use this when move from local to global scope
+    val SET_ZERO                          = "!0"
+    val ELIM_ZERO                         = "!0"
     val MOVE_FROM_LOCAL_TO_GLOBAL_ZERO    = "u0?0-1[o0<1+1?0-1]o0o"
     val RESTORE_FROM_GLOBAL_ZERO_TO_LOCAL = "u[>1-1]o0"
+    val SET_ARRAY_START_POSITION          = "!1"
+    val MOVE_BACK_FROM_FETCH_POSITION     = "?1-1[o0<1?1-1]o0!1"
   }
 
   private val moveToGlobalZero = StateM { (s: InstrState) =>
@@ -39,7 +39,7 @@ package object ops {
   private def setPos(pos: Pos) = StateM { (s: InstrState) =>
     ((), s.setPos(pos))
   }
-  
+
   private def push(instr: String) = StateM { (s: InstrState) =>
     ((), s.push(instr))
   }
@@ -77,7 +77,7 @@ package object ops {
         moveRight(p - a.p)
       }
     } yield ()
-  
+
   def moveLeft(x: Int): InstrM[Unit] =
     if (x == 0)
       InstrM.unit(())
@@ -98,27 +98,41 @@ package object ops {
         ((), s.toRight(x).push(f">$x%d"))
       }
 
+  val dynamicFetchAndReplaceByOffsetOnStk = for {
+    _ <- push(Code.SET_ARRAY_START_POSITION)
+    _ <- push(">")
+    _ <- popAway
+    _ <- pushValToStk()
+    _ <- push(Code.MOVE_BACK_FROM_FETCH_POSITION)
+  } yield ()
 
   val getPos = StateM { (s: InstrState) =>
     (s.pos, s)
   }
-  val pop = StateM { (s: InstrState) =>
+  val popInstr = StateM { (s: InstrState) =>
     s.pop
   }
   def seq[T](instrs: List[InstrM[T]]): InstrM[Unit] = instrs.foldRight(InstrM.unit()) { (a, b) =>
     a flatMap ((_) => b)
   }
 
-  def convertToLVal: InstrM[Unit] =
+  def convertToLValAndPop: InstrM[Unit] =
     for {
-      instr <- pop
-      _ <- if (instr.last != 'u') {
-        throw new IllegalStateException("Can't convert a non lval to lval")
-      } else {
-        if (instr.length() == 1)
-          InstrM.unit(())
-        else
-          push(instr.substring(0, instr.length() - 1))
+      instr <- popInstr
+      _ <- instr match {
+        case "u" => popToArr
+
+        case Code.MOVE_BACK_FROM_FETCH_POSITION =>
+          for {
+            instr2 <- popInstr
+            _ <- if (instr2 == "u") for {
+              _ <- popToArr
+              _ <- push(instr)
+            } yield ()
+            else throw new IllegalStateException("Can't convert a non lval to lval with instr: " + instr2 + instr)
+          } yield ()
+        
+        case _ => throw new IllegalStateException("Can't convert a non lval to lval with instr: " + instr)
       }
     } yield ()
   def enterSubrtState    = setPos(Pos(PositionState.LOCAL, 0))
@@ -152,24 +166,26 @@ package object ops {
     seq(instrs)
   }
   val mainSettingUpInstr = push("!0")
-  val popToArr = push("o")
-  val popAway  = push("o0")
-  def pushValToStk() = push("u")
-  def setVal(v: Int) = for {
-    _ <- pushToStk(v)
-    _ <- popToArr
-  } yield ()
+  val popToArr           = push("o")
+  val popAway            = push("o0")
+  def pushValToStk()     = push("u")
+  def setVal(v: Int) =
+    for {
+      _ <- pushToStk(v)
+      _ <- popToArr
+    } yield ()
   def pushToStk(v: Int) = push(f"u$v%d")
-  val readInt  = push("R")
-  val writeInt = push("W")
-  val plus = push("+")
-  val minus = push("-")
-  val startRecurse = push("s")
-  def loop(body: InstrM[Unit]) = for {
-    _ <- push("[")
-    pos <- getPos
-    _ <- body
-    _ <- moveTo(pos)
-    _ <- push("]")
-  } yield ()
+  val readInt           = push("R")
+  val writeInt          = push("W")
+  val plus              = push("+")
+  val minus             = push("-")
+  val startRecurse      = push("s")
+  def loop(body: InstrM[Unit]) =
+    for {
+      _   <- push("[")
+      pos <- getPos
+      _   <- body
+      _   <- moveTo(pos)
+      _   <- push("]")
+    } yield ()
 }

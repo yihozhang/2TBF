@@ -123,23 +123,36 @@ END."""
 // read(n);
 // write(f(n));
 // end."""
+//     val prog = """
+// var a,b,c,n:integer;
+// begin
+// read(n);
+// a:=0;
+// b:=1;
+// c:=1;
+// while n do begin
+// c:=a+b;
+// a:=b;
+// b:=c;
+// write(c);
+// n:=n-1;
+// end;
+// write(c);
+// end.
+// """
     val prog = """
-var a,b,c,n:integer;
-begin
-read(n);
-a:=0;
-b:=1;
-c:=1;
-while n do begin
-c:=a+b;
-a:=b;
-b:=c;
-write(c);
-n:=n-1;
-end;
-write(c);
-end.
-"""
+    var 
+    i:integer;a: array [0..100] of integer;
+    begin
+    a[0]:=1;
+    a[1]:=1;
+    i:=2;
+    while 100 - i do begin
+      a[i] := a[i-1]+a[i-2];
+      i := i + 1;
+    end;
+    write(a[99]);
+    end."""
     val astProg = TTBFParser.parse(TTBFParser.astProg, prog)
     // println(TTBFParser.parse(TTBFParser.astExpra, "f(1)"));
     println(astProg)

@@ -98,7 +98,7 @@ void print_config(int instr_p) {
   fprintf(logfile, "v1: %hd, v2: %hd\n", v1, v2);
   fprintf(logfile, "arr_p: %d, stk_p: %d\n", arr_p, stk_p);
   fprintf(logfile, "Arr: ");
-  for (int i = 0; i < arr_p; i++) {
+  for (int i = 0; i <= arr_p; i++) {
     fprintf(logfile, "%hd ", arr[i].val);
   }
   fprintf(logfile, "\nStk: ");
@@ -136,10 +136,10 @@ void run() {
       else
         pop();
     } else if (op == '>') {
-      v1 = next_int_or(get_val());
+      v1 = next_int_or(top());
       arr_p += v1;
     } else if (op == '<') {
-      v1 = next_int_or(get_val());
+      v1 = next_int_or(top());
       arr_p -= v1;
     } else if (op == 'r') {
       push(get_char());

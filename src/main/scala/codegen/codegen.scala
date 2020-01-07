@@ -12,15 +12,13 @@ package object Codegen {
         for {
           _ <- genExpr(rval)
           _ <- genExpr(lval)
-          _ <- convertToLVal
-          _ <- popToArr
+          _ <- convertToLValAndPop
         } yield ()
       case ASTRead(expr) =>
         for {
+          _ <- readInt // TODO: check whether expr is character or integer
           _ <- genExpr(expr)
-          _ <- convertToLVal
-          _ <- readInt
-          _ <- popToArr // TODO: check whether expr is character or integer
+          _ <- convertToLValAndPop
         } yield ()
       case ASTWrite(expr) =>
         for {
@@ -88,20 +86,37 @@ package object Codegen {
     val instrs: List[InstrM[Unit]] = stmts.map(genStmt(_))
     seq(instrs)
   }
+
+  def getVarPos(id: ASTId)(implicit global:GlobalEnv, local: Option[LocalEnv]) = {
+    if (local.isDefined && local.get.contains(id)) {
+        Pos(PositionState.LOCAL, (local.get)(id).p)
+      } else if (global contains id) {
+        Pos(PositionState.GLOBAL, global(id).p)
+      } else {
+        throw new IllegalArgumentException("Can't find variables: " + id.v)
+      }
+  }
   def genExpr(
       expr: ASTExpr // change to TypedExpr later
   )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv): InstrM[Unit] = expr match {
-    case ASTIdxedVar(id, idx) => ???
-    case ASTConst(v)          => pushToStk(v)
+    case ASTIdxedVar(id, idx) => for {
+      _ <- genExpr(idx)
+      typeInfo <- InstrM.unit {
+        (if (local.isDefined && local.get.contains(id)) {
+          (local.get)(id).typ
+        } else {
+          global(id).typ
+        }).asInstanceOf[ASTArr]
+      }
+      _ <- pushToStk(typeInfo.lbound)
+      _ <- minus
+      _ <- moveTo(getVarPos(id))
+      _ <- dynamicFetchAndReplaceByOffsetOnStk
+    } yield ()
+    case ASTConst(v) => pushToStk(v)
     case ASTVar(id) => {
       for {
-        _ <- if (local.isDefined && local.get.contains(id)) {
-          moveToLocal((local.get)(id).p)
-        } else if (global contains id) {
-          moveToGlobal(global(id).p)
-        } else {
-          throw new IllegalArgumentException("Can't find variables: " + id.v)
-        }
+        _ <- moveTo(getVarPos(id))
         _ <- pushValToStk
       } yield ()
     }
