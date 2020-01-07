@@ -33,7 +33,21 @@ package object Codegen {
       case ASTBlock(stmts) => genStmts(stmts)
       case ASTIf(cond, thn, els) =>
         ifCondThenElse(genExpr(cond), genStmt(thn), genStmt(els.getOrElse(ASTBlock(Nil))))
-      case ASTWhile(cond, body) => ???
+      case ASTWhile(cond, body) => {
+        val condInstr = genExpr(cond)
+        val bodyInstr = genStmt(body)
+        for {
+          _ <- condInstr
+          _ <- loop {
+            for {
+              _ <- popAway
+              _ <- bodyInstr
+              _ <- condInstr
+            } yield ()
+          }
+          _ <- popAway
+        } yield ()
+      }
     }
 
   def setupSubrtCall(
@@ -112,25 +126,15 @@ package object Codegen {
       declsToLocalEnv(subrt.params, subrt.vars, retValAndName)
     }
 
-    subrt match {
-      case ASTFun(funName, params, vars, body, retType) =>
-        for {
-          _ <- enterSubrtState
-          _ <- genStmts(subrt.body)(global, Some(local), subrtEnv)
-          _ <- moveToLocal(0)
-        } yield ()
-      case ASTProc(procName, params, vars, body) =>
-        for {
-          _ <- enterSubrtState
-          _ <- genStmts(subrt.body)(global, Some(local), subrtEnv)
-          _ <- moveToLocal(0)
-        } yield ()
-    }
+    for {
+      _ <- enterSubrtState
+      _ <- genStmts(subrt.body)(global, Some(local), subrtEnv)
+      _ <- moveToLocal(0)
+    } yield ()
   }
 
   def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv, subrtEnv: SubrtEnv): InstrM[Unit] =
     for {
-      pos <- getPos
       _ <- enterMainBodyState
       _ <- mainSettingUpInstr
       _ <- genStmts(mainBody)(global, None, subrtEnv)

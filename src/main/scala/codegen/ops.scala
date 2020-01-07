@@ -165,4 +165,11 @@ package object ops {
   val plus = push("+")
   val minus = push("-")
   val startRecurse = push("s")
+  def loop(body: InstrM[Unit]) = for {
+    _ <- push("[")
+    pos <- getPos
+    _ <- body
+    _ <- moveTo(pos)
+    _ <- push("]")
+  } yield ()
 }
