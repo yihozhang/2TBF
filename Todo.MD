@@ -1,5 +1,7 @@
 # Todo List
 
+- [ ] while loop
+- [ ] for loopo
 - [ ] type checking to determine the polymorphic read/write semantic
 - [ ] string write support
 - [ ] scala version of interpreter for testing

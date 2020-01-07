@@ -47,7 +47,7 @@ package object env {
 
   def declsToLocalEnv(params: ASTParamDecls, vars: ASTVarDecls, retVal: Option[(ASTBaseVarType, ASTId)]): LocalEnv = {
     val (retValEnv: Map[ASTId, Var], (paramEnv, cur)) = retVal match {
-      case None            => (Map(), declsToEnvImpl(params, 0))
+      case None            => (Map(), declsToEnvImpl(params, 1))
       case Some((typ, id)) => (Map(id -> new Var(id, 0, 1, typ)), declsToEnvImpl(params, 1))
     }
     val (varEnv, _) = declsToEnvImpl(vars, cur)

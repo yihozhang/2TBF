@@ -13,24 +13,27 @@ package object Codegen {
           _ <- genExpr(rval)
           _ <- genExpr(lval)
           _ <- convertToLVal
-          _ <- Op.push("o")
+          _ <- popToArr
         } yield ()
       case ASTRead(expr) =>
         for {
           _ <- genExpr(expr)
           _ <- convertToLVal
-          _ <- Op.push("Ro") // TODO: check whether expr is character or integer
+          _ <- readInt
+          _ <- popToArr // TODO: check whether expr is character or integer
         } yield ()
       case ASTWrite(expr) =>
         for {
           _ <- genExpr(expr)
-          _ <- Op.push("Wo0") // TODO: same as above
+          _ <- writeInt
+          _ <- popAway // TODO: same as above
         } yield ()
       case ASTSubrtCall(subrt, params) =>
         setupSubrtCall(subrt, params, false)
       case ASTBlock(stmts) => genStmts(stmts)
       case ASTIf(cond, thn, els) =>
         ifCondThenElse(genExpr(cond), genStmt(thn), genStmt(els.getOrElse(ASTBlock(Nil))))
+      case ASTWhile(cond, body) => ???
     }
 
   def setupSubrtCall(
@@ -40,11 +43,11 @@ package object Codegen {
   )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv) = {
     val instrs = params map { param =>
           for {
-            pos <- Op.getPos // remember current position
+            pos <- getPos // remember current position
             _   <- genExpr(param)
-            _   <- ops.moveTo(pos)
-            _   <- Op.moveRight(1)
-            _   <- Op.push("o")
+            _   <- moveTo(pos)
+            _   <- moveRight(1)
+            _   <- popToArr
           } yield ()
         }
     for {
@@ -54,13 +57,13 @@ package object Codegen {
         else
           Pos(PositionState.GLOBAL, global.largestPos + 1)
       )
-      _ <- ops.moveTo(pos)
-      _ <- Op.push("u" + subrtEnv(name) + "o")
-      _ <- Op.seq(instrs)
-      _ <- ops.moveTo(pos)
-      _ <- Op.push("s")
+      _ <- moveTo(pos)
+      _ <- setVal(subrtEnv(name))
+      _ <- seq(instrs)
+      _ <- moveTo(pos)
+      _ <- startRecurse
       _ <- if (needsRetVal) {
-        Op.push("u")
+        pushValToStk
       } else InstrM.unit(())
     } yield ()
   }
@@ -69,13 +72,13 @@ package object Codegen {
       stmts: List[ASTStmt]
   )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv) = {
     val instrs: List[InstrM[Unit]] = stmts.map(genStmt(_))
-    Op.seq(instrs)
+    seq(instrs)
   }
   def genExpr(
       expr: ASTExpr // change to TypedExpr later
   )(implicit global: GlobalEnv, local: Option[LocalEnv], subrtEnv: SubrtEnv): InstrM[Unit] = expr match {
     case ASTIdxedVar(id, idx) => ???
-    case ASTConst(v)          => Op.push(f"u$v%d")
+    case ASTConst(v)          => pushToStk(v)
     case ASTVar(id) => {
       for {
         _ <- if (local.isDefined && local.get.contains(id)) {
@@ -85,7 +88,7 @@ package object Codegen {
         } else {
           throw new IllegalArgumentException("Can't find variables: " + id.v)
         }
-        _ <- Op.push("u")
+        _ <- pushValToStk
       } yield ()
     }
     // TODO: if oprand is variable, then we can actually do some optimizations...
@@ -93,13 +96,13 @@ package object Codegen {
       for {
         _ <- genExpr(lv)
         _ <- genExpr(rv)
-        _ <- Op.push("+")
+        _ <- plus
       } yield ()
     case ASTMinus(lv, rv) =>
       for {
         _ <- genExpr(lv)
         _ <- genExpr(rv)
-        _ <- Op.push("-")
+        _ <- minus
       } yield ()
     case ASTFunCall(fun, params) => setupSubrtCall(fun, params, true)
   }
@@ -119,21 +122,19 @@ package object Codegen {
       case ASTProc(procName, params, vars, body) =>
         for {
           _ <- enterSubrtState
-          _ <- Op.push(">1") // the next cell is the start of parameters
           _ <- genStmts(subrt.body)(global, Some(local), subrtEnv)
           _ <- moveToLocal(0)
-          _ <- Op.push("<1")
         } yield ()
     }
   }
 
   def genMainBody(mainBody: List[ASTStmt])(implicit global: GlobalEnv, subrtEnv: SubrtEnv): InstrM[Unit] =
     for {
-      pos <- Op.getPos
+      pos <- getPos
       _ <- enterMainBodyState
       _ <- mainSettingUpInstr
       _ <- genStmts(mainBody)(global, None, subrtEnv)
-      _ <- Op.setPos(pos) // for the harmony of the overall if-branching structure
+      _ <- enterSubrtState // for the harmony of the overall if-branching structure
     } yield ()
 
   def genProg(prog: ASTProg): InstrM[Unit] = {
@@ -143,7 +144,7 @@ package object Codegen {
     val mainInstrs     = genMainBody(prog.mainBody)(global, subrtEnv)
     val instrs = (mainInstrs :: subrtInstrList).foldRight(printError) { (a, b) =>
       val bb = decArrVal flatMap { case () => b }
-      ifCondThenElse(Op.push("u"), bb, a)
+      ifCondThenElse(pushValToStk, bb, a)
     }
     instrs
   }

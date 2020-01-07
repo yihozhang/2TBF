@@ -127,6 +127,7 @@ END."""
 // write(g(1,0));
 // END."""
     val prog = """
+var n:integer;
 function f(n:integer):integer;
 begin
 if n then
@@ -138,7 +139,8 @@ else
     f := 1;
 end;
 begin
-write(f(2));
+read(n);
+write(f(n));
 end."""
     val astProg = TTBFParser.parse(TTBFParser.astProg, prog)
     // println(TTBFParser.parse(TTBFParser.astExpra, "f(1)"));

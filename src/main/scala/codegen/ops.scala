@@ -2,77 +2,167 @@ package ttbf.codegen
 
 package object ops {
   import ttbf.common.instrm._
+
+  private object Code {
+    val SET_ZERO  = "!0"
+    val ELIM_ZERO = "!0"
+    // val MOVE_TO_ZERO = "?0-1[o0<1?0-1]"
+    // NOTE: only use this when move from local to global scope
+    val MOVE_FROM_LOCAL_TO_GLOBAL_ZERO    = "u0?0-1[o0<1+1?0-1]o0o"
+    val RESTORE_FROM_GLOBAL_ZERO_TO_LOCAL = "u[>1-1]o0"
+  }
+
+  private val moveToGlobalZero = StateM { (s: InstrState) =>
+    if (s.pos.isGlobal)
+      ((), s.toLeft(s.pos.p).push(f"<${s.pos.p}%d"))
+    else
+      (
+        (),
+        s.savePos()
+          .setPos(Pos(PositionState.GLOBAL, 0))
+          .push(Code.MOVE_FROM_LOCAL_TO_GLOBAL_ZERO)
+      )
+  }
+  private val restoreToLocal: InstrM[Unit] = StateM { (s: InstrState) =>
+    if (s.pos.isLocal) {
+      throw new IllegalArgumentException("apply restore at a local state")
+    } else {
+      (
+        (),
+        s.push(f"<${s.pos.p}%d")
+          .push(Code.RESTORE_FROM_GLOBAL_ZERO_TO_LOCAL)
+          .restoreSavedPos()
+      )
+    }
+  }
+
+  private def setPos(pos: Pos) = StateM { (s: InstrState) =>
+    ((), s.setPos(pos))
+  }
+  
+  private def push(instr: String) = StateM { (s: InstrState) =>
+    ((), s.push(instr))
+  }
+
   def moveTo(pos: Pos): InstrM[Unit] =
     if (pos.isGlobal) {
       moveToGlobal(pos.p)
     } else {
       moveToLocal(pos.p)
     }
+
   def moveToLocal(p: Int): InstrM[Unit] =
     for {
-      a <- Op.getPos
+      a <- getPos
       _ <- if (a.isLocal) {
-        Op.moveRight(p - a.p)
+        moveRight(p - a.p)
       } else {
         for {
-          _ <- Op.restoreToLocal
-          b <- Op.getPos
-          _ <- Op.moveRight(p - b.p)
+          _ <- restoreToLocal
+          b <- getPos
+          _ <- moveRight(p - b.p)
         } yield ()
-      }
-    } yield ()
-  def moveToGlobal(p: Int): InstrM[Unit] =
-    for {
-      a <- Op.getPos
-      _ <- if (a.isLocal) {
-        for {
-          _ <- Op.moveToGlobalZero
-          _ <- Op.moveRight(p)
-        } yield ()
-      } else {
-        Op.moveRight(p - a.p)
       }
     } yield ()
 
+  def moveToGlobal(p: Int): InstrM[Unit] =
+    for {
+      a <- getPos
+      _ <- if (a.isLocal) {
+        for {
+          _ <- moveToGlobalZero
+          _ <- moveRight(p)
+        } yield ()
+      } else {
+        moveRight(p - a.p)
+      }
+    } yield ()
+  
+  def moveLeft(x: Int): InstrM[Unit] =
+    if (x == 0)
+      InstrM.unit(())
+    else if (x < 0)
+      moveRight(-x)
+    else
+      StateM { (s: InstrState) =>
+        ((), s.toLeft(x).push(f"<$x%d"))
+      }
+
+  def moveRight(x: Int): InstrM[Unit] =
+    if (x == 0)
+      InstrM.unit(())
+    else if (x < 0)
+      moveLeft(-x)
+    else
+      StateM { (s: InstrState) =>
+        ((), s.toRight(x).push(f">$x%d"))
+      }
+
+
+  val getPos = StateM { (s: InstrState) =>
+    (s.pos, s)
+  }
+  val pop = StateM { (s: InstrState) =>
+    s.pop
+  }
+  def seq[T](instrs: List[InstrM[T]]): InstrM[Unit] = instrs.foldRight(InstrM.unit()) { (a, b) =>
+    a flatMap ((_) => b)
+  }
+
   def convertToLVal: InstrM[Unit] =
     for {
-      instr <- Op.pop
+      instr <- pop
       _ <- if (instr.last != 'u') {
         throw new IllegalStateException("Can't convert a non lval to lval")
       } else {
         if (instr.length() == 1)
           InstrM.unit(())
         else
-          Op.push(instr.substring(0, instr.length() - 1))
+          push(instr.substring(0, instr.length() - 1))
       }
     } yield ()
-  def enterSubrtState    = Op.setPos(Pos(PositionState.LOCAL, 0))
-  def enterMainBodyState = Op.setPos(Pos(PositionState.GLOBAL, 0))
+  def enterSubrtState    = setPos(Pos(PositionState.LOCAL, 0))
+  def enterMainBodyState = setPos(Pos(PositionState.GLOBAL, 0))
   def ifCondThenElse(cond: InstrM[Unit], thn: InstrM[Unit], els: InstrM[Unit]) =
     for {
-      _ <- Op.push("u1u0")
-      _ <- cond
-      pos <- Op.getPos
-      _ <- Op.push("[o0o0o0u0u1u0]o0") // if val > 0 push {0, 1}; else push {1, 0}
-      _ <- Op.push("[")
-      _ <- thn
-      _ <- ops.moveTo(pos)
-      _ <- Op.push("-1") // to enforce exit
-      _ <- Op.push("]")
-      _ <- Op.push("o0") // pop the first condition var
-      _ <- Op.push("[")
-      _ <- els
-      _ <- ops.moveTo(pos)
-      _ <- Op.push("-1") // to enforce exit
-      _ <- Op.push("]")
-      _ <- Op.push("o0") // pop the second condition var
+      _   <- push("u1u0")
+      _   <- cond
+      pos <- getPos
+      _   <- push("[o0o0o0u0u1u0]o0") // if val > 0 push {0, 1}; else push {1, 0}
+      _   <- push("[")
+      _   <- thn
+      _   <- ops.moveTo(pos)
+      _   <- push("-1") // to enforce exit
+      _   <- push("]")
+      _   <- push("o0") // pop the first condition var
+      _   <- push("[")
+      _   <- els
+      _   <- ops.moveTo(pos)
+      _   <- push("-1") // to enforce exit
+      _   <- push("]")
+      _   <- push("o0") // pop the second condition var
     } yield ()
-  val decArrVal = Op.push("u-1o")
-  lazy val printError = {
+
+  val decArrVal = push("u-1o")
+  val printError = {
     val instrs = "Error!!"
       .map(_.toByte)
-      .map(code => Op.push("u" + code + "wo")).toList
-    Op.seq(instrs)
+      .map(code => push("u" + code + "wo"))
+      .toList
+    seq(instrs)
   }
-  val mainSettingUpInstr = Op.push("!0")
+  val mainSettingUpInstr = push("!0")
+  val popToArr = push("o")
+  val popAway  = push("o0")
+  def pushValToStk() = push("u")
+  def setVal(v: Int) = for {
+    _ <- pushToStk(v)
+    _ <- popToArr
+  } yield ()
+  def pushToStk(v: Int) = push(f"u$v%d")
+  val readInt  = push("R")
+  val writeInt = push("W")
+  val plus = push("+")
+  val minus = push("-")
+  val startRecurse = push("s")
 }

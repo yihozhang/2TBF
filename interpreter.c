@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#define DEBUG
+// #define DEBUG
 #define MAX_LENGTH 100000
 
 typedef struct {
@@ -92,7 +92,7 @@ int get_int() {
     return x;
 }
 #define put_int(x) printf("%d", (x))
-
+#ifdef DEBUG
 void print_config(int instr_p) {
     fprintf(logfile, "instr: %c, instr_p: %d\n", op, instr_p);
     fprintf(logfile, "v1: %hd, v2: %hd\n", v1, v2);
@@ -107,7 +107,7 @@ void print_config(int instr_p) {
     }
     fprintf(logfile, "\n\n");
 }
-
+#endif
 void run() {
     int instr_p = 0;
     while (instr_p < instr_len) {

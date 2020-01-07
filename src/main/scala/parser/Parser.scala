@@ -130,7 +130,14 @@ object TTBFParser extends RegexParsers {
 
   def astStmt: Parser[ASTStmt] = {
     astAsg | astRead | astWrite |
-    astSubrtCall | astIf | astBlockSemicolon ^^ { stmts => ASTBlock(stmts)}
+    astSubrtCall | astIf | astWhile |
+    astBlockSemicolon ^^ { stmts => ASTBlock(stmts)}
+  }
+
+  def astWhile: Parser[ASTWhile] = {
+    "while".ic ~ astExpr ~ "do".ic ~ astStmt ^^ {
+      case _ ~ cond ~ _ ~ stmt => ASTWhile(cond, stmt)
+    }
   }
 
   def astRead: Parser[ASTRead] = {

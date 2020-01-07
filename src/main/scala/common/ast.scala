@@ -67,4 +67,5 @@ package object ast {
 
   case class ASTFunCall(fun: ASTId, params: List[ASTExpr])     extends ASTExpr
   case class ASTSubrtCall(subrt: ASTId, params: List[ASTExpr]) extends ASTStmt
+  case class ASTWhile(cond: ASTExpr, body: ASTStmt) extends ASTStmt
 }
